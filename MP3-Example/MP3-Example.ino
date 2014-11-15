@@ -54,6 +54,7 @@ AudioControlSGTL5000     sgtl5000_1;     //xy=263,109
 // GUItool: end automatically generated code
 
 HelixMp3 mp3;
+HelixAac aac;
 
 #define PIN_SPI_SCK			14
 #define PIN_SPI_MOSI		 7
@@ -73,17 +74,18 @@ void setup() {
 	}
 
 	// Audio connections require memory to work.
-	// Should be >=18 for MP3, all buffers are you define here will be used.
+	// Should be >=18 (mp3, aac: 16), all buffers are you define here will be used.
 	AudioMemory(18);
 
 	sgtl5000_1.enable();
 	//sgtl5000_1.enhanceBassEnable();
 	sgtl5000_1.volume(0.5);
+	Serial.println("Start.");
 }
 
 void loop() {
 	// Filename is 8.3 only:
+	aac.play("aac1.aac", &queue1, &queue2);
 	mp3.play("whisper.mp3", &queue1, &queue2);
-	
 	delay(1500);
 }

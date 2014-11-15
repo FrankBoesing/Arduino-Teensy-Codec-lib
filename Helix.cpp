@@ -36,35 +36,17 @@
 
 */
 
- /* The Helix-Library is modified for Teensy 3.1 */
+ 
 
 #include <Helix.h>
-#include "mp3/mp3dec.h"
-#include "mp3/assembly.h"
 
-#include "mp3/bitstream.c"
-#include "mp3/buffers.c"
-#include "mp3/coder.h"
-#include "mp3/dct32.c"
-#include "mp3/dequant.c"
-#include "mp3/dqchan.c"
-#include "mp3/huffman.c"
-#include "mp3/hufftabs.c"
-#include "mp3/imdct.c"
-#include "mp3/mp3dec.c"
-#include "mp3/mp3tabs.c"
-#include "mp3/scalfact.c"
-#include "mp3/stproc.c"
-#include "mp3/subband.c"
-#include "mp3/trigtabs.c"
-//#include "mp3/polyphase.c" // C implementation
+#define DBG Serial
 
+/* ===================================================================================================
+   Base class Helix
+   ===================================================================================================*/
 
-HelixMp3::HelixMp3()
-{
-}
-
-uint32_t HelixMp3::fillReadBuffer(uint8_t* data, uint32_t dataLeft)
+uint32_t Helix::fillReadBuffer(uint8_t *data, uint32_t dataLeft)
 {
   memmove(sd_buf, data, dataLeft);
 
@@ -72,7 +54,7 @@ uint32_t HelixMp3::fillReadBuffer(uint8_t* data, uint32_t dataLeft)
   uint32_t read = 0;
   uint16_t n;
 
-  //Read 512 - Byte blocks (faster than other amounts)
+  //Read 512 - byte blocks (faster than other amounts)
   if (spaceLeft>0)
   {
 	do {
@@ -94,37 +76,106 @@ uint32_t HelixMp3::fillReadBuffer(uint8_t* data, uint32_t dataLeft)
 
 //Skip ID3-Tags at the beginning of the file.
 //http://id3.org/id3v2.4.0-structure
-
-void HelixMp3::skipID3(void)
+uint32_t Helix::skipID3(void)
 {
-	// read = fillReadBuffer(file, sd_buf, sd_p, 0);
-
-	if ( sd_buf[0]=='I' && sd_buf[1]=='D' && sd_buf[2]=='3' &&
+	uint32_t skip = 0;
+	
+	if (sd_buf[0]=='I' && sd_buf[1]=='D' && sd_buf[2]=='3' &&
 		sd_buf[3]<0xff && sd_buf[4]<0xff &&
-		sd_buf[6]<0x80 && sd_buf[7]<0x80 && sd_buf[8]<0x80 && sd_buf[9]<0x80) {
-
-		int skip = ((sd_buf[6] & 0x7f) << 21) |
+		sd_buf[6]<0x80 && sd_buf[7]<0x80 &&
+		sd_buf[8]<0x80 && sd_buf[9]<0x80)
+	{
+		// bytes 6-9:offset of maindata, with bit.7=0:
+		skip =	((sd_buf[6] & 0x7f) << 21) |
 				((sd_buf[7] & 0x7f) << 14) |
 				((sd_buf[8] & 0x7f) <<  7) |
 				 (sd_buf[9] & 0x7f);
-
-		file.seek(skip);
-		sd_left = 0;
 	}
-	else
-	sd_left = read;
+
+	return skip;
 }
 
-void HelixMp3::init(void)
+void Helix::fillAudioBuffers(int numChannels, int len)
 {
+	int j = 0;
+	int16_t *lb;
+	int16_t *rb;
+
+	if (numChannels==1) { //1-Channel mono:
+		while (len > 0)
+		{
+
+			//todo: Ask Paul if there is a better way
+			//a) to play mono
+			//b) without two while-wait loops
+
+			//while (!leftChannel->available()) {yield();/*idlePlay();*/}
+			lb = leftChannel->getBuffer();
+			//while (!rightChannel->available()) {yield();/*idlePlay();*/}
+			rb = rightChannel->getBuffer();
+
+			//copy audiodata. lllllll -> llll rrrr
+			//Todo: Is 2 x memcpy faster ?
+			//(esp.with newest newlib which has as very good optimization)
+
+			for (int i=0; i < AUDIO_BLOCK_SAMPLES / 2; i++){
+
+				*lb++ = buf[j];
+				*rb++ = buf[j];
+				*lb++ = buf[j++];
+				*rb++ = buf[j++];
+
+			}
+
+			leftChannel->playBuffer();
+			rightChannel->playBuffer();
+			len -= AUDIO_BLOCK_SAMPLES;
+		}
+	} //mono
+
+	else if (numChannels==2) //2-Channel stereo:
+	{
+		while (len > 0)
+		{
+
+			//while (!leftChannel->available()) {yield();/*idlePlay();*/}
+			lb = leftChannel->getBuffer();
+			//while (!rightChannel->available()) {yield();/*idlePlay();*/}
+			rb = rightChannel->getBuffer();
+
+			//deinterlace audiodata. lrlrlrlr -> llll rrrr
+
+			for (int i=0; i < AUDIO_BLOCK_SAMPLES / 2; i++){
+				*lb++ = buf[j++];
+				*rb++ = buf[j++];
+				*lb++ = buf[j++];
+				*rb++ = buf[j++];
+			}
+
+			leftChannel->playBuffer();
+			rightChannel->playBuffer();
+
+			len -= AUDIO_BLOCK_SAMPLES * 2;
+		} //Stereo
+
+	}
 }
 
-short int HelixMp3::play(const char *filename, AudioPlayQueue *leftChannel, AudioPlayQueue *rightChannel)
+/* ===================================================================================================
+   class HelixMp3
+   ===================================================================================================*/
+   
+short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, AudioPlayQueue *rghtChannel)
 {
-	int	decode_res= ERR_MP3_NONE;
+	int	decode_res;
+
+	//int lmax = 0;
 
 	if (!leftChannel || !rightChannel)
 		return ERR_HMP3_NO_QUEUE;
+
+	leftChannel = leftChannel;
+	rightChannel = rghtChannel;
 
 	file = SD.open(filename);
 	if (!file) return ERR_HMP3_FILE_NOT_FOUND;
@@ -157,9 +208,19 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *leftChannel, Audi
 	sd_eof = false;
 	sd_p = sd_buf;
 
+	//Read-ahead full buffer
 	read = fillReadBuffer(sd_buf, 0);
-	skipID3();
 
+	//Skip ID3, if existent
+	uint32_t skip = skipID3();
+	if (skip) {
+		file.seek(skip);
+		sd_left = 0;
+	} else {
+		sd_left = read;
+	}
+
+	//decoding loop
 	do
 	{
 		if (sd_left < (2 * MAINBUF_SIZE) && !sd_eof) {
@@ -180,9 +241,11 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *leftChannel, Audi
 		sd_p += offset;
 		sd_left -= offset;
 
-		// decode one MP3 frame - if offset < 0 then sd_left was less than a full frame
-
+		//int l1 = micros();
 		decode_res = MP3Decode(hMP3Decoder, &sd_p, &sd_left,(short*)buf, 0);
+		//l1 = micros() - l1;
+		//lmax += l1;
+		//if (framesDecoded % 100==0) { Serial.println(lmax / 100); lmax=0; }
 
 		switch (decode_res)
 		{
@@ -218,82 +281,17 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *leftChannel, Audi
 							decode_res = ERR_HMP3_FORMAT;
 							break;
 					}
+					framesDecoded++;
+					fillAudioBuffers(mp3FrameInfo.nChans, mp3FrameInfo.outputSamps);
+					break;
+
 				}
-
-				framesDecoded++;
-
-				int len = mp3FrameInfo.outputSamps;
-
-				int j = 0;
-				int16_t *lb;
-				int16_t *rb;
-
-				if (mp3FrameInfo.nChans==1) {
-
-				//1-Channel mono:
-				while (len > 0) {
-
-					//todo: Ask Paul if there is a better way
-					//a) to play mono
-					//b) without two while-wait loops
-
-					//while (!leftChannel->available()) {yield();/*idlePlay();*/}
-					lb = leftChannel->getBuffer();
-					//while (!rightChannel->available()) {yield();/*idlePlay();*/}
-					rb = rightChannel->getBuffer();
-
-					//Todo: Is 2 x memcpy faster ?
-					//(esp.with newest newlib which has as very good optimization)
-
-					for (int i=0; i < AUDIO_BLOCK_SAMPLES / 2; i++){
-
-						*lb++ = buf[j];
-						*rb++ = buf[j];
-						*lb++ = buf[j++];
-						*rb++ = buf[j++];
-
-					}
-
-					leftChannel->playBuffer();
-					rightChannel->playBuffer();
-					len -= AUDIO_BLOCK_SAMPLES;
-				}
-				}
-
-				else {
-
-				//2-Channel stereo:
-				while (len > 0) {
-
-					//while (!leftChannel->available()) {yield();/*idlePlay();*/}
-					lb = leftChannel->getBuffer();
-					//while (!rightChannel->available()) {yield();/*idlePlay();*/}
-					rb = rightChannel->getBuffer();
-
-					//deinterlace audiodata. lrlrlrlr -> llll rrrr
-
-					for (int i=0; i < AUDIO_BLOCK_SAMPLES/2; i++){
-						*lb++ = buf[j++];
-						*rb++ = buf[j++];
-						*lb++ = buf[j++];
-						*rb++ = buf[j++];
-					}
-
-					leftChannel->playBuffer();
-					rightChannel->playBuffer();
-
-					len -= AUDIO_BLOCK_SAMPLES * 2;
-				} //Stereo
-				}
-
-				break;
 			}
 
 			default :
 			{
-				//DBG.println("Mp3Decode: Decoding error");
+				//DBG.println("Decoding error");
 				sd_eof = true;
-				//decode_res = ERR_HMP3_DECODING_ERROR;
 				break;
 			}
 		}
@@ -304,6 +302,151 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *leftChannel, Audi
 	free(buf);
 	free(sd_buf);
 	MP3FreeDecoder(hMP3Decoder);
+
+	return decode_res;
+}
+
+/* ===================================================================================================
+   class HelixAac
+   ===================================================================================================*/
+
+short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, AudioPlayQueue *rghtChannel)
+{
+
+	int	decode_res;
+
+	//int lmax = 0;
+	//DBG.print("Decode");
+	if (!leftChannel || !rightChannel)
+		return ERR_HMP3_NO_QUEUE;
+
+	leftChannel = leftChannel;
+	rightChannel = rghtChannel;
+
+	file = SD.open(filename);
+	if (!file) return ERR_HMP3_FILE_NOT_FOUND;
+
+	sd_buf = (uint8_t *) malloc(SD_BUF_SIZE);
+	if (!sd_buf) {
+		file.close();
+		return ERR_HMP3_OUT_OF_MEMORY;
+	}
+
+	buf = (int16_t *) malloc(AAC_BUF_SIZE * sizeof(int16_t));
+	if (!buf) {
+		file.close();
+		free(sd_buf);
+		return ERR_HMP3_OUT_OF_MEMORY;
+	}
+
+	hAACDecoder = AACInitDecoder();
+	if (!hAACDecoder) {
+		file.close();
+		free(sd_buf);
+		free(buf);
+		return ERR_HMP3_OUT_OF_MEMORY;
+	}
+
+	//DBG.print("Bytes Free: ");
+	//DBG.println(FreeRam());
+
+	decode_res = ERR_AAC_NONE;
+	framesDecoded = 0;
+	sd_eof = false;
+	sd_p = sd_buf;
+
+	//Read-ahead full buffer
+	read = fillReadBuffer(sd_buf, 0);
+
+	//Skip ID3, if existent
+	uint32_t skip = skipID3();
+	if (skip) {
+		file.seek(skip);
+		sd_left = 0;
+	} else {
+		sd_left = read;
+	}
+
+	//decoding loop
+	do
+	{
+		if (sd_left < (2 * MAINBUF_SIZE) && !sd_eof) {
+			uint32_t read = fillReadBuffer( sd_p, sd_left);
+			sd_left += read;
+			sd_p = sd_buf;
+		}
+
+		// find start of next MP3 frame - assume EOF if no sync found
+		int offset =AACFindSyncWord(sd_p, sd_left);
+
+		if (offset < 0) {
+			DBG.println("Mp3Decode: No sync"); //no error at end of file
+			sd_eof = true;
+			break;
+		}
+
+		sd_p += offset;
+		sd_left -= offset;
+
+		//int l1 = micros();
+		decode_res =AACDecode(hAACDecoder, &sd_p, &sd_left,(short*)buf);
+
+		//DBG.println(decode_res);
+
+		//l1 = micros() - l1;
+		//lmax += l1;
+		//if (framesDecoded % 100==0) { DBG.println(lmax / 100); lmax=0; }
+
+		switch (decode_res)
+		{
+			case ERR_AAC_INDATA_UNDERFLOW:
+				{
+					//This is not really an error at the end of the file:
+					DBG.println("Decoding error ERR_AAC_INDATA_UNDERFLOW");
+					sd_eof = true;
+					break;
+				}
+
+			case ERR_AAC_NONE:
+				{
+					AACGetLastFrameInfo(hAACDecoder, &aacFrameInfo);
+
+					if (framesDecoded == 0)
+					{/*
+							DBG.println("sampRateCore:");DBG.println(aacFrameInfo.sampRateCore);
+							DBG.println("sampRateOut:");DBG.println(aacFrameInfo.sampRateOut);
+							DBG.println("bitsPerSample:");DBG.println(aacFrameInfo.bitsPerSample);
+							DBG.println("nChans:");DBG.println(aacFrameInfo.nChans);
+					*/
+						//DBG.printf("Mp3Decode: %d Hz %d Bit %d Channels\r\n", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
+						if((aacFrameInfo.sampRateOut != 44100) || (aacFrameInfo.bitsPerSample != 16) || (aacFrameInfo.nChans > 2)) {
+							//DBG.println("AacDecode: incompatible AAC file.");
+							sd_eof = true;
+							decode_res = ERR_HMP3_FORMAT;
+							break;
+					}
+
+					framesDecoded++;
+					fillAudioBuffers(aacFrameInfo.nChans, aacFrameInfo.outputSamps);
+					break;
+				}
+			}
+
+			default :
+			{
+				DBG.print("Decoding error ");
+				DBG.println(decode_res);
+				sd_eof = true;
+				break;
+			}
+		}
+
+	} while(!sd_eof || decode_res < 0 );
+
+	file.close();
+	free(buf);
+	free(sd_buf);
+	AACFreeDecoder(hAACDecoder);
 
 	return decode_res;
 }

@@ -43,7 +43,7 @@
  **************************************************************************************/
 
 #include "coder.h"
-#include "assembly.h"
+//#include "assembly.h"
 
 /**************************************************************************************
  * Function:    AntiAlias
@@ -570,6 +570,7 @@ static __inline void imdct12 (int *x, int *out)
 	 */
 	wp = imdctWin[2];
 	mOut = 0;
+	/*/* fb unrolled loop
 	for (i = 0; i < 3; i++) {
 		yLo = (xPrevWin[ 0+i] << 2);
 		mOut |= FASTABS(yLo);	y[( 0+i)*NBANDS] = yLo;
@@ -584,13 +585,68 @@ static __inline void imdct12 (int *x, int *out)
 		yLo = (xPrevWin[15+i] << 2) + (MULSHIFT32(wp[9+i], xBuf[0+i]) + MULSHIFT32(wp[3+i], xBuf[(6+5)-i]));	
 		mOut |= FASTABS(yLo);	y[(15+i)*NBANDS] = yLo;
 	}
-
+	*/
+	 i = 0; 
+		yLo = (xPrevWin[ 0+i] << 2);
+		mOut |= FASTABS(yLo);	y[( 0+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 3+i] << 2);
+		mOut |= FASTABS(yLo);	y[( 3+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 6+i] << 2) + (MULSHIFT32(wp[0+i], xBuf[3+i]));	
+		mOut |= FASTABS(yLo);	y[( 6+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 9+i] << 2) + (MULSHIFT32(wp[3+i], xBuf[5-i]));	
+		mOut |= FASTABS(yLo);	y[( 9+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[12+i] << 2) + (MULSHIFT32(wp[6+i], xBuf[2-i]) + MULSHIFT32(wp[0+i], xBuf[(6+3)+i]));	
+		mOut |= FASTABS(yLo);	y[(12+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[15+i] << 2) + (MULSHIFT32(wp[9+i], xBuf[0+i]) + MULSHIFT32(wp[3+i], xBuf[(6+5)-i]));	
+		mOut |= FASTABS(yLo);	y[(15+i)*NBANDS] = yLo;
+	
+	 i = 1; 
+		yLo = (xPrevWin[ 0+i] << 2);
+		mOut |= FASTABS(yLo);	y[( 0+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 3+i] << 2);
+		mOut |= FASTABS(yLo);	y[( 3+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 6+i] << 2) + (MULSHIFT32(wp[0+i], xBuf[3+i]));	
+		mOut |= FASTABS(yLo);	y[( 6+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 9+i] << 2) + (MULSHIFT32(wp[3+i], xBuf[5-i]));	
+		mOut |= FASTABS(yLo);	y[( 9+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[12+i] << 2) + (MULSHIFT32(wp[6+i], xBuf[2-i]) + MULSHIFT32(wp[0+i], xBuf[(6+3)+i]));	
+		mOut |= FASTABS(yLo);	y[(12+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[15+i] << 2) + (MULSHIFT32(wp[9+i], xBuf[0+i]) + MULSHIFT32(wp[3+i], xBuf[(6+5)-i]));	
+		mOut |= FASTABS(yLo);	y[(15+i)*NBANDS] = yLo;
+	
+	 i = 2;
+		yLo = (xPrevWin[ 0+i] << 2);
+		mOut |= FASTABS(yLo);	y[( 0+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 3+i] << 2);
+		mOut |= FASTABS(yLo);	y[( 3+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 6+i] << 2) + (MULSHIFT32(wp[0+i], xBuf[3+i]));	
+		mOut |= FASTABS(yLo);	y[( 6+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[ 9+i] << 2) + (MULSHIFT32(wp[3+i], xBuf[5-i]));	
+		mOut |= FASTABS(yLo);	y[( 9+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[12+i] << 2) + (MULSHIFT32(wp[6+i], xBuf[2-i]) + MULSHIFT32(wp[0+i], xBuf[(6+3)+i]));	
+		mOut |= FASTABS(yLo);	y[(12+i)*NBANDS] = yLo;
+		yLo = (xPrevWin[15+i] << 2) + (MULSHIFT32(wp[9+i], xBuf[0+i]) + MULSHIFT32(wp[3+i], xBuf[(6+5)-i]));	
+		mOut |= FASTABS(yLo);	y[(15+i)*NBANDS] = yLo;
+	
 	/* save previous (unwindowed) for overlap - only need samples 6-8, 12-17 */
+	/* fb unrolled loops
 	for (i = 6; i < 9; i++)
 		*xPrev++ = xBuf[i] >> 2;
+	*/	
+		*xPrev++ = xBuf[6] >> 2;
+		*xPrev++ = xBuf[7] >> 2;
+		*xPrev++ = xBuf[8] >> 2;
+    /*
 	for (i = 12; i < 18; i++)
 		*xPrev++ = xBuf[i] >> 2;
-
+	*/
+		*xPrev++ = xBuf[12] >> 2;
+		*xPrev++ = xBuf[13] >> 2;
+		*xPrev++ = xBuf[14] >> 2;
+		*xPrev++ = xBuf[15] >> 2;
+		*xPrev++ = xBuf[16] >> 2;
+		*xPrev++ = xBuf[17] >> 2;
+		
 	xPrev -= 9;
 	mOut |= FreqInvertRescale(y, xPrev, blockIdx, es);
 

@@ -105,7 +105,7 @@ enum {
 	ERR_MP3_INVALID_IMDCT =        -11,
 	ERR_MP3_INVALID_SUBBAND =      -12,
 
-	ERR_UNKNOWN =                  -9999
+	ERR_MP3_UNKNOWN =                  -9999
 };
 
 typedef struct _MP3FrameInfo {

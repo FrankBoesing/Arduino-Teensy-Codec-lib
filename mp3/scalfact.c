@@ -281,9 +281,15 @@ static void UnpackSFMPEG2(BitStreamInfo *bsi, SideInfoSub *sis, ScaleFactorInfoS
 	btIdx = 0;
 	if (sis->blockType == 2) 
 		btIdx = (sis->mixedBlock ? 2 : 1);
+
 	for (i = 0; i < 4; i++)
 		nr[i] = (int)NRTab[sfcIdx][btIdx][i];
-
+/*
+		nr[0] = (int)NRTab[sfcIdx][btIdx][0];
+		nr[1] = (int)NRTab[sfcIdx][btIdx][1];
+		nr[2] = (int)NRTab[sfcIdx][btIdx][2];		
+		nr[3] = (int)NRTab[sfcIdx][btIdx][3];
+*/
 	/* save intensity stereo scale factor info */
 	if( (modeExt & 0x01) && (ch == 1) ) {
 		for (i = 0; i < 4; i++) {

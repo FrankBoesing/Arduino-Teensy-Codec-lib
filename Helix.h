@@ -47,28 +47,28 @@
 
 #define SD_BUF_SIZE		3072 //Size of sd-buffer
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
+#define AAC_BUF_SIZE	2048 //AAC output buffer TODO: Check this
 
 #include <Audio.h>
 #include <SD.h>
 
-//Include Helix MP3-mp3
+//Include decoders
 #include "mp3/mp3dec.h"
+#include "aac/aacdec.h"
 
 //Errorcodes
 #define ERR_HMP3_NONE   	  	   0
-#define ERR_HMP3_NO_QUEUE   	  -1
-#define ERR_HMP3_FILE_NOT_FOUND   -2
-#define ERR_HMP3_OUT_OF_MEMORY    -3
-#define ERR_HMP3_FORMAT			  -4
-#define ERR_HMP3_DECODING_ERROR   -5
+#define ERR_HMP3_NO_QUEUE   	   1
+#define ERR_HMP3_FILE_NOT_FOUND    2
+#define ERR_HMP3_OUT_OF_MEMORY     3
+#define ERR_HMP3_FORMAT			   4
+#define ERR_HMP3_DECODING_ERROR    5
 
 
-class HelixMp3 {
+class Helix {
 public:
-	HelixMp3();
-	short int play(const char *filename,  AudioPlayQueue *leftChannel,  AudioPlayQueue *rightChannel);
 
-private:
+protected:
 	File			file;
 	uint8_t			*sd_buf;//uint8_t sd_buf[SD_BUF_SIZE];
 	uint8_t			*sd_p;
@@ -78,14 +78,39 @@ private:
 	int16_t			*buf;//int16_t	buf[MP3_BUF_SIZE];
 	uint32_t 		framesDecoded;
 
+	AudioPlayQueue	*leftChannel;
+	AudioPlayQueue	*rightChannel;
+
+	uint32_t fillReadBuffer(uint8_t *data, uint32_t dataLeft);
+	uint32_t skipID3(void);
+
+	void fillAudioBuffers(int numChannels, int len);
+};
+
+
+class HelixMp3 : public Helix {
+public:
+
+	short int play(const char *filename,  AudioPlayQueue *lftChannel,  AudioPlayQueue *rghtChannel);
+
+private:
+
 	HMP3Decoder		hMP3Decoder;
 	MP3FrameInfo	mp3FrameInfo;
 
-	void init(void);
-	void deinit(void);
-	uint32_t fillReadBuffer(uint8_t* data, uint32_t dataLeft);
-	void skipID3(void);
 };
 
+
+class HelixAac : public Helix {
+public:
+
+	short int play(const char *filename,  AudioPlayQueue *lftChannel,  AudioPlayQueue *rghtChannel);
+
+private:
+
+	HAACDecoder		hAACDecoder;
+	AACFrameInfo 	aacFrameInfo;
+
+};
 
 #endif
