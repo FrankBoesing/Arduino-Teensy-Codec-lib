@@ -44,6 +44,9 @@
 #ifndef _CODER_H
 #define _CODER_H
 
+//fb, -O2 gives speedup of 1-2 ms @48MHz
+#pragma GCC optimize "-O2"
+
 #include "mp3common.h"
 
 #if defined(ASSERT)
