@@ -47,7 +47,7 @@
 
 #define SD_BUF_SIZE		3072 //Size of sd-buffer
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
-#define AAC_BUF_SIZE	2048 //AAC output buffer TODO: Check this
+#define AAC_BUF_SIZE	(2048) //AAC output buffer TODO: Check this
 
 #include <Audio.h>
 #include <SD.h>
@@ -94,7 +94,7 @@ public:
 	short int play(const char *filename,  AudioPlayQueue *lftChannel,  AudioPlayQueue *rghtChannel);
 
 private:
-
+	
 	HMP3Decoder		hMP3Decoder;
 	MP3FrameInfo	mp3FrameInfo;
 

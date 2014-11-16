@@ -135,14 +135,15 @@ void Helix::fillAudioBuffers(int numChannels, int len)
 
 	else if (numChannels==2) //2-Channel stereo:
 	{
+	
 		while (len > 0)
 		{
-
 			//while (!leftChannel->available()) {yield();/*idlePlay();*/}
 			lb = leftChannel->getBuffer();
+
 			//while (!rightChannel->available()) {yield();/*idlePlay();*/}
 			rb = rightChannel->getBuffer();
-
+			
 			//deinterlace audiodata. lrlrlrlr -> llll rrrr
 
 			for (int i=0; i < AUDIO_BLOCK_SAMPLES / 2; i++){
@@ -171,10 +172,10 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 
 	//int lmax = 0;
 
-	if (!leftChannel || !rightChannel)
+	if (!lftChannel || !rghtChannel)
 		return ERR_HMP3_NO_QUEUE;
 
-	leftChannel = leftChannel;
+	leftChannel = lftChannel;
 	rightChannel = rghtChannel;
 
 	file = SD.open(filename);
@@ -201,8 +202,9 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		return ERR_HMP3_OUT_OF_MEMORY;
 	}
 
-	//DBG.printf("Bytes Free: %d \r\n", FreeRam());
-
+	DBG.print("Bytes Free: ");
+	DBG.println(FreeRam());
+	
 	decode_res = ERR_MP3_NONE;
 	framesDecoded = 0;
 	sd_eof = false;
@@ -252,7 +254,7 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 			case ERR_MP3_INDATA_UNDERFLOW:
 				{
 					//This is not really an error at the end of the file:
-					//DBG.println("Mp3Decode: Decoding error ERR_MP3_INDATA_UNDERFLOW");
+					//DBG.println("Decoding error ERR_MP3_INDATA_UNDERFLOW");
 					sd_eof = true;
 					break;
 				}
@@ -274,23 +276,23 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 
 					if (framesDecoded == 0)
 					{
-						//DBG.printf("Mp3Decode: %d Hz %d Bit %d Channels\r\n", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
+						//DBG.printf("%d Hz %d Bit %d Channels\r\n", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
 						if((mp3FrameInfo.samprate != 44100) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
 							//DBG.println("Mp3Decode: incompatible MP3 file.");
 							sd_eof = true;
 							decode_res = ERR_HMP3_FORMAT;
 							break;
+						}
 					}
 					framesDecoded++;
 					fillAudioBuffers(mp3FrameInfo.nChans, mp3FrameInfo.outputSamps);
-					break;
-
-				}
+					break;					
 			}
 
 			default :
 			{
-				//DBG.println("Decoding error");
+				//DBG.print("Decoding error");
+				//DBG.println(decode_res);
 				sd_eof = true;
 				break;
 			}
@@ -317,10 +319,10 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 
 	//int lmax = 0;
 	//DBG.print("Decode");
-	if (!leftChannel || !rightChannel)
+	if (!lftChannel || !rghtChannel)
 		return ERR_HMP3_NO_QUEUE;
 
-	leftChannel = leftChannel;
+	leftChannel = lftChannel;
 	rightChannel = rghtChannel;
 
 	file = SD.open(filename);
@@ -347,8 +349,8 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		return ERR_HMP3_OUT_OF_MEMORY;
 	}
 
-	//DBG.print("Bytes Free: ");
-	//DBG.println(FreeRam());
+	DBG.print("Bytes Free: ");
+	DBG.println(FreeRam());
 
 	decode_res = ERR_AAC_NONE;
 	framesDecoded = 0;
@@ -380,7 +382,7 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		int offset =AACFindSyncWord(sd_p, sd_left);
 
 		if (offset < 0) {
-			DBG.println("Mp3Decode: No sync"); //no error at end of file
+			DBG.println("No sync"); //no error at end of file
 			sd_eof = true;
 			break;
 		}
@@ -398,7 +400,7 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		//if (framesDecoded % 100==0) { DBG.println(lmax / 100); lmax=0; }
 
 		switch (decode_res)
-		{
+		{ 
 			case ERR_AAC_INDATA_UNDERFLOW:
 				{
 					//This is not really an error at the end of the file:
@@ -413,23 +415,23 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 
 					if (framesDecoded == 0)
 					{/*
-							DBG.println("sampRateCore:");DBG.println(aacFrameInfo.sampRateCore);
-							DBG.println("sampRateOut:");DBG.println(aacFrameInfo.sampRateOut);
-							DBG.println("bitsPerSample:");DBG.println(aacFrameInfo.bitsPerSample);
-							DBG.println("nChans:");DBG.println(aacFrameInfo.nChans);
+							DBG.print("sampRateCore:");DBG.println(aacFrameInfo.sampRateCore);
+							DBG.print("sampRateOut:");DBG.println(aacFrameInfo.sampRateOut);
+							DBG.print("bitsPerSample:");DBG.println(aacFrameInfo.bitsPerSample);
+							DBG.print("nChans:");DBG.println(aacFrameInfo.nChans);
+							DBG.print("Samples:");DBG.println(aacFrameInfo.outputSamps);
 					*/
-						//DBG.printf("Mp3Decode: %d Hz %d Bit %d Channels\r\n", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
+						//DBG.printf("%d Hz %d Bit %d Channels\r\n", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
 						if((aacFrameInfo.sampRateOut != 44100) || (aacFrameInfo.bitsPerSample != 16) || (aacFrameInfo.nChans > 2)) {
 							//DBG.println("AacDecode: incompatible AAC file.");
 							sd_eof = true;
 							decode_res = ERR_HMP3_FORMAT;
 							break;
+						}
 					}
-
-					framesDecoded++;
-					fillAudioBuffers(aacFrameInfo.nChans, aacFrameInfo.outputSamps);
-					break;
-				}
+				framesDecoded++;				
+				fillAudioBuffers(aacFrameInfo.nChans, aacFrameInfo.outputSamps);				
+				break;				
 			}
 
 			default :
