@@ -45,9 +45,14 @@
 #ifndef helix_h
 #define helix_h
 
-#define SD_BUF_SIZE		3072 //Size of sd-buffer
+//SD_BUF_SIZE: Size fo buffer for SD reads.
+//For MP3,this is MAINBUF_SIZE = 1940,
+//for AAC, it is AAC_MAX_NCHANS * AAC_MAINBUF_SIZE = 768 * 2 = 3072
+//#define SD_BUF_SIZE		3072+512 //Size of sd-buffer //TODO: Try 2048
+#define SD_BUF_SIZE		4096+512 //Size of sd-buffer //TODO: Try 2048
+
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
-#define AAC_BUF_SIZE	(2048) //AAC output buffer TODO: Check this
+#define AAC_BUF_SIZE	(AAC_MAX_NCHANS * AAC_MAX_NSAMPS) //AAC output buffer 
 
 #include <Audio.h>
 #include <SD.h>
@@ -64,6 +69,11 @@
 #define ERR_HMP3_FORMAT			   4
 #define ERR_HMP3_DECODING_ERROR    5
 
+
+#define HSWAP_UINT16(x) (((x) >> 8) | ((x) << 8))
+#define HSWAP_UINT32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+
+typedef struct {unsigned int position;unsigned int size;} ATOM;
 
 class Helix {
 public:
@@ -82,7 +92,7 @@ protected:
 	AudioPlayQueue	*rightChannel;
 
 	uint32_t fillReadBuffer(uint8_t *data, uint32_t dataLeft);
-	uint32_t skipID3(void);
+	void skipID3(void);
 
 	void fillAudioBuffers(int numChannels, int len);
 };
@@ -94,7 +104,7 @@ public:
 	short int play(const char *filename,  AudioPlayQueue *lftChannel,  AudioPlayQueue *rghtChannel);
 
 private:
-	
+		
 	HMP3Decoder		hMP3Decoder;
 	MP3FrameInfo	mp3FrameInfo;
 
@@ -103,14 +113,25 @@ private:
 
 class HelixAac : public Helix {
 public:
-
+	
 	short int play(const char *filename,  AudioPlayQueue *lftChannel,  AudioPlayQueue *rghtChannel);
 
 private:
 
+	bool			isRAW;
+	
+	uint8_t  		channels;
+	uint8_t  		bits;	
+	uint16_t 		samplerate;
+	
+	uint32_t		firstFrame; //mp4/m4a only
+	uint32_t		sizeOfData;
+	
 	HAACDecoder		hAACDecoder;
 	AACFrameInfo 	aacFrameInfo;
 
+	ATOM findMp4Atom(const char *atom, uint32_t posi);
+	void findMp4Mdat(void);
 };
 
 #endif

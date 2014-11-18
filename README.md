@@ -1,7 +1,7 @@
 Arduino-Teensy-MP3-lib
 ======================
 
-Plays 320 kbps *.MP3 or *.AAC in software without external hardware - 
+Plays up to 320 kbps *.MP3, *.MP4, *.M4A, or *.AAC in software without external hardware - 
 with only 48MHz.
 
 Optimized for ARM Thumb2.
@@ -9,9 +9,7 @@ Optimized for ARM Thumb2.
 Currently, only basic-functionality is implemented.
 
 planned:
- - *.m4u, *.mp4
  - *.flac
- 
  - better interface
 
  TODO:
