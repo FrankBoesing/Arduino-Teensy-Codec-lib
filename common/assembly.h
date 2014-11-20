@@ -348,6 +348,7 @@ static __inline__ int MULSHIFT32(int x, int y)
 
 static __inline short CLIPTOSHORT(int x) 
 {
+
 //	int sign;
 	/* clip to [-32768, 32767] */
 /*
