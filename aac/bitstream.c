@@ -85,13 +85,22 @@ void SetBitstreamPointer(BitStreamInfo *bsi, int nBytes, unsigned char *buf)
 static __inline void RefillBitstreamCache(BitStreamInfo *bsi)
 {
 	int nBytes = bsi->nBytes;
-
-	/* optimize for common case, independent of machine endian-ness */
+	
 	if (nBytes >= 4) {
+		/* optimize for common case, independent of machine endian-ness */
+		/*
 		bsi->iCache  = (*bsi->bytePtr++) << 24;
 		bsi->iCache |= (*bsi->bytePtr++) << 16;
 		bsi->iCache |= (*bsi->bytePtr++) <<  8;
 		bsi->iCache |= (*bsi->bytePtr++);
+		*/
+	
+		/* Optimize for ARM instead (FB)*/
+		unsigned int *Ptr32;
+		Ptr32 =(unsigned int*)bsi->bytePtr;
+		bsi->iCache = REV32(*Ptr32);
+		bsi->bytePtr+=4;
+		
 		bsi->cachedBits = 32;
 		bsi->nBytes -= 4;
 	} else {

@@ -338,85 +338,53 @@ static __inline Word64 MADD64(Word64 sum64, int x, int y)
  */
 #elif defined(__GNUC__) && defined(__arm__)
 
-static __inline__ int MULSHIFT32(int x, int y)
+static inline int MULSHIFT32(int x, int y)
 {
     int zlow;
-    __asm__ volatile ("smull %0,%1,%2,%3" : "=&r" (zlow), "=r" (y) : "r" (x), "1" (y) : "cc");
+    asm volatile ("smull %0,%1,%2,%3" : "=&r" (zlow), "=r" (y) : "r" (x), "1" (y) : "cc");
     return y;
 }
 
 
-static __inline short CLIPTOSHORT(int x) 
+static inline short CLIPTOSHORT(int x) 
 {
-
-//	int sign;
-	/* clip to [-32768, 32767] */
-/*
-	sign = x >> 31;
-	if (sign != (x >> 15))
-		x = sign ^ ((1 << 15) - 1);
-	return (short) x;
-*/
 //FB:
-
 	short out;
 	asm volatile("ssat %0, #16, %1" : "=r" (out) : "r" (x));
 	return out;
-
 }
-#include <stdlib.h>
-static __inline int FASTABS(int x) 
+
+
+#define CLIP_30(x) { asm volatile ("ssat %0, #30, %0" : "=r" (x) : "r" (x)); } //FB
+#define FASTABS(x) abs(x) //FB
+#define CLZ(x) __builtin_clz(x) //FB
+
+//Reverse byte order (32 bit) //FB
+static inline unsigned int REV32( unsigned int value)
 {
-/*
-	int sign;
-
-	sign = x >> (sizeof(int) * 8 - 1);
-	x ^= sign;
-	x -= sign;
-
-	return x;
-*/	
-//FB
-	return abs(x);
+   unsigned int result;
+  asm volatile ("rev %0, %1" : "=r" (result) : "r" (value) );
+  return(result);
 }
 
-static __inline int CLZ(int x)
-{
-
-	return __builtin_clz(x); //fb
-	/*
-	int numZeros;
-
-	if (!x)
-		return (sizeof(int) * 8);
-
-	numZeros = 0;
-	while (!(x & 0x80000000)) {
-		numZeros++;
-		x <<= 1;
-	} 
-
-	return numZeros;
-	*/
-}
 
 typedef long long Word64;
 
 typedef union _U64 {
 	Word64 w64;
 	struct {
-		/* ARM ADS = little endian */
+		/* little endian */
 		unsigned int lo32;
 		signed int   hi32;
 	} r;
 } U64;
 
-static __inline Word64 MADD64(Word64 sum64, int x, int y)
+static inline Word64 MADD64(Word64 sum64, int x, int y)
 {
 	U64 u;
 	u.w64 = sum64;
 	
-	__asm__ volatile ("smlal %0,%1,%2,%3" : "+&r" (u.r.lo32), "+&r" (u.r.hi32) : "r" (x), "r" (y) : "cc");
+	asm volatile ("smlal %0,%1,%2,%3" : "+&r" (u.r.lo32), "+&r" (u.r.hi32) : "r" (x), "r" (y) : "cc");
 	
 	return u.w64;
 }
