@@ -6,13 +6,10 @@ with only 48MHz.
 
 Optimized for ARM Thumb2.
 
-Currently, only basic-functionality is implemented.
-
 planned:
  - *.flac
- - better interface
-
+ 
  TODO:
- - Check, if flash can be saved, there are some duplicate tables and functions in both decoders 
  - Optimize some functions
+ - Write an aac-audio-lib object
  
