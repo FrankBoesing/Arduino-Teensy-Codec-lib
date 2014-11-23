@@ -57,9 +57,9 @@ uint32_t Helix::fillReadBuffer(uint8_t *data, uint32_t dataLeft)
 {
   memmove(sd_buf, data, dataLeft);
 
-  uint32_t spaceLeft = SD_BUF_SIZE - dataLeft;
-  uint32_t read = dataLeft;
-  uint16_t n;
+  unsigned int spaceLeft = SD_BUF_SIZE - dataLeft;
+  unsigned int read = dataLeft;
+  unsigned int n;
 
   //Read 512 - byte blocks (faster)
   if (spaceLeft>0)
@@ -99,25 +99,20 @@ void Helix::skipID3(void)
 		file.seek(b);
 		//Fill buffer from the beginning with fresh data
 		read = fillReadBuffer(sd_buf, 0);
-		sd_p = sd_buf + ofs-b;
+		sd_p = sd_buf + ofs - b;
 		sd_left = read;
 	}
 
 }
 
-void Helix::fillAudioBuffers(int numChannels, int len)
+void Helix::fillAudioBuffers(int16_t *buf, int numChannels, int len)
 {
-	int j = 0;
 	int16_t *lb;
 	int16_t *rb;
 
 	if (numChannels==1) { //1-Channel mono:
 		while (len > 0)
 		{
-
-			//todo: Ask Paul if there is a better way
-			//a) to play mono
-			//b) without two while-wait loops
 
 			//while (!leftChannel->available()) {yield();/*idlePlay();*/}
 			lb = leftChannel->getBuffer();
@@ -128,15 +123,18 @@ void Helix::fillAudioBuffers(int numChannels, int len)
 			//Todo: Is 2 x memcpy faster ?
 			//(esp.with newest newlib which has as very good optimization)
 
-			for (int i=0; i < AUDIO_BLOCK_SAMPLES / 2; i++){
+			for (int i=0; i < AUDIO_BLOCK_SAMPLES /2 ; i++){
 
-				*lb++ = buf[j];
-				*rb++ = buf[j];
-				*lb++ = buf[j++];
-				*rb++ = buf[j++];
+				int16_t x = *buf++;
+				*lb++ = x;
+				*rb++ = x;
+				
+				x = *buf++;
+				*lb++ = x;			
+				*rb++ = x;
 
 			}
-
+			
 			leftChannel->playBuffer();
 			rightChannel->playBuffer();
 			len -= AUDIO_BLOCK_SAMPLES;
@@ -157,10 +155,10 @@ void Helix::fillAudioBuffers(int numChannels, int len)
 			//deinterlace audiodata. lrlrlrlr -> llll rrrr
 
 			for (int i=0; i < AUDIO_BLOCK_SAMPLES / 2; i++){
-				*lb++ = buf[j++];
-				*rb++ = buf[j++];
-				*lb++ = buf[j++];
-				*rb++ = buf[j++];
+				*lb++ = *buf++;
+				*rb++ = *buf++;
+				*lb++ = *buf++;
+				*rb++ = *buf++;
 			}
 
 			leftChannel->playBuffer();
@@ -178,9 +176,9 @@ void Helix::fillAudioBuffers(int numChannels, int len)
    
 short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, AudioPlayQueue *rghtChannel)
 {
-	int	decode_res;
-
-	int lmax = 0;
+	int	decode_res = ERR_MP3_NONE;
+	bool sd_eof = false;
+	//int lmax = 0;
 	DBG.println(filename);
 	
 	if (!lftChannel || !rghtChannel)
@@ -198,7 +196,7 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		return ERR_HMP3_OUT_OF_MEMORY;
 	}
 
-	buf = (int16_t *) malloc(MP3_BUF_SIZE * sizeof(int16_t));
+	int16_t *buf = (int16_t *) malloc(MP3_BUF_SIZE * sizeof(int16_t));
 	if (!buf) {
 		file.close();
 		free(sd_buf);
@@ -215,10 +213,8 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 
 	DBG.print("Bytes Free: ");
 	DBG.println(FreeRam());
-	
-	decode_res = ERR_MP3_NONE;
-	framesDecoded = 0;
-	sd_eof = false;
+		
+	uint32_t framesDecoded = 0;	
 	sd_p = sd_buf;
 
 	//Read-ahead full buffer
@@ -289,7 +285,7 @@ short int HelixMp3::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 						}
 					}
 					framesDecoded++;
-					fillAudioBuffers(mp3FrameInfo.nChans, mp3FrameInfo.outputSamps);
+					fillAudioBuffers(buf, mp3FrameInfo.nChans, mp3FrameInfo.outputSamps);
 					break;					
 			}
 
@@ -328,7 +324,7 @@ ATOM HelixAac::findMp4Atom(const char *atom, uint32_t posi){
 		r = file.seek(ret.position);
 		file.read((uint8_t *) &atomInfo, sizeof(atomInfo));		
 	
-		ret.size = HSWAP_UINT32(atomInfo.size);
+		ret.size = REV32(atomInfo.size);
 		if (strncmp(atom, atomInfo.name, 4)==0){			
 			//DBG.print(atomInfo.name[0]);DBG.print(atomInfo.name[1]);DBG.print(atomInfo.name[2]);DBG.print(atomInfo.name[3]);
 			//DBG.print(": Size ");DBG.print(ret.size, HEX);DBG.print(" Pos ");DBG.println(ret.position, HEX);
@@ -348,8 +344,14 @@ void HelixAac::findMp4Mdat(void)
 {
 	//go through the boxes to find the interesting atoms:
 	uint32_t moov = findMp4Atom("moov",0).position;
-	uint32_t trak = findMp4Atom("trak", moov + 8).position;
+	uint32_t trak = findMp4Atom("trak", moov + 8).position;	
 	uint32_t mdia = findMp4Atom("mdia", trak + 8).position;
+	
+	findMp4Atom("mdhd", mdia + 8).position;
+	file.read(sd_p, 0x20);
+	duration =  (uint32_t) sd_p[0x10] << 24 | (uint32_t) sd_p[0x11] << 16 |
+						(uint16_t) sd_p[0x12] << 8 |  sd_p[0x13];
+		
 	uint32_t minf = findMp4Atom("minf", mdia + 8).position;		
 	uint32_t stbl = findMp4Atom("stbl", minf + 8).position;
 	
@@ -364,32 +366,37 @@ void HelixAac::findMp4Mdat(void)
 	//stco - chunk offset atom
 	findMp4Atom("stco", stbl + 8);	
 	file.read(sd_p, 0x10);
+	
 	//read entry #1 from chunk table, ignore entry #0 for bginning of audiodata:
 	firstFrame = (uint32_t) sd_p[0x0c] << 24 | (uint32_t) sd_p[0x0d] << 16 |
 						(uint16_t) sd_p[0x0e] << 8 |  sd_p[0x0f];
 	
 	//find mdat-chunk to calculate the size of the audiodata
-	ATOM mdat = findMp4Atom("mdat",0);
-	sizeOfData = mdat.size - (firstFrame - (mdat.position + 8));
-	/*
-	DBG.print("stsd: chan=");DBG.print(channels);
+	//ATOM mdat = findMp4Atom("mdat",0);
+	//sizeOfData = mdat.size - (firstFrame - (mdat.position + 8));
+	
+	DBG.print("mdhd duration=");
+	DBG.print(duration);
+	DBG.print(", stsd: chan=");DBG.print(channels);
 	DBG.print(" bits=");DBG.print(bits);
 	DBG.print(" samplerate=");
 	DBG.print(samplerate);
 	DBG.print(" firstFrame=");
 	DBG.print(firstFrame, HEX);	
-	DBG.print(" size=");
-	DBG.println(sizeOfData, HEX);
-	*/
+	
+	//DBG.print(" size=");
+	//DBG.println(sizeOfData, HEX);
+	
 	return; 
 }
    
 short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, AudioPlayQueue *rghtChannel)
 {
-
-	int	decode_res = ERR_AAC_NONE;
-
-	//int lmax = 0;
+	
+	int	decode_res = ERR_AAC_NONE;	
+	bool sd_eof = false;
+	
+	int lmax = 0;
 	DBG.println(filename);
 	
 	if (!lftChannel || !rghtChannel)
@@ -413,7 +420,7 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		return ERR_HMP3_OUT_OF_MEMORY;
 	}
 
-	buf = (int16_t *) malloc(AAC_BUF_SIZE * sizeof(int16_t));
+	int16_t *buf = (int16_t *) malloc(AAC_BUF_SIZE * sizeof(int16_t));
 	if (!buf) {
 		file.close();
 		free(sd_buf);
@@ -428,12 +435,12 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		return ERR_HMP3_OUT_OF_MEMORY;
 	}
 	
-	//DBG.print("Bytes Free: ");
-	//DBG.println(FreeRam());
+	DBG.print("Bytes Free: ");
+	DBG.println(FreeRam());
 
 	uint32_t consumed = 0;
-	framesDecoded = 0;
-	sd_eof = false;
+	uint32_t framesDecoded = 0;
+	
 	sd_p = sd_buf;
 	
 	if (!isRAW) { //setup for mp4/m4u
@@ -444,7 +451,7 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 		
 		memset(&aacFrameInfo, 0, sizeof(AACFrameInfo));
 		aacFrameInfo.nChans = channels;
-		aacFrameInfo.bitsPerSample = bits;
+		//aacFrameInfo.bitsPerSample = bits; not used
 		aacFrameInfo.sampRateCore = samplerate;
 		aacFrameInfo.profile = AAC_PROFILE_LC;
 		AACSetRawBlockParams(hAACDecoder, 0, &aacFrameInfo);	
@@ -452,7 +459,8 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 	} else { //setup aac:
 		sd_left = fillReadBuffer(sd_buf, 0);//Read-ahead full buffer
 		skipID3();	
-		sizeOfData = 0; //can't know.. 
+		//sizeOfData = 0; //can't know.. 
+		duration= 0 ;//can't know.. 
 	}
 
 	do
@@ -470,7 +478,7 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 			int offset =AACFindSyncWord(sd_p, sd_left);
 
 			if (offset < 0) {
-				DBG.println("No sync"); //no error at end of file
+				//DBG.println("No sync"); //no error at end of file
 				sd_eof = true;
 				break;		
 			}
@@ -480,20 +488,20 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 
 		}
 
-		//int l1 = micros();
-		uint32_t leftBefore = sd_left;
+		int l1 = micros();
+		
 		decode_res =AACDecode(hAACDecoder, &sd_p, &sd_left,(short*)buf);
-		consumed += (leftBefore - sd_left);
-		//l1 = micros() - l1;
-		//lmax += l1;
-		//if (framesDecoded % 100==0) { DBG.println(lmax / 100); lmax=0; }
+		
+		l1 = micros() - l1;
+		lmax += l1;
+		if (framesDecoded % 100==0) { DBG.println(lmax / 100); lmax=0; }
 
 		if (!decode_res) 
 		{
 			
 			AACGetLastFrameInfo(hAACDecoder, &aacFrameInfo);
 			if (framesDecoded == 0) {
-				DBG.print("bitrate:");DBG.println(aacFrameInfo.bitRate);//TODO Why is this =0 ? Bug ?
+				//DBG.print("bitrate:");DBG.println(aacFrameInfo.bitRate);//TODO Why is this =0 ? Bug ?
 				DBG.print("sampRateCore:");DBG.println(aacFrameInfo.sampRateCore);
 				DBG.print("sampRateOut:");DBG.println(aacFrameInfo.sampRateOut);
 				DBG.print("bitsPerSample:");DBG.println(aacFrameInfo.bitsPerSample);
@@ -510,15 +518,17 @@ short int HelixAac::play(const char *filename, AudioPlayQueue *lftChannel, Audio
 			}
 
 			framesDecoded++;				
-			fillAudioBuffers(aacFrameInfo.nChans, aacFrameInfo.outputSamps);
-
+			fillAudioBuffers(buf, aacFrameInfo.nChans, aacFrameInfo.outputSamps);
+			consumed += aacFrameInfo.outputSamps / 2;
+			
 		} else {
 			//This should never be the case. hopefully. it helps skipping bad frames, but is noisy.
 			sd_left --;
 			sd_p ++;		
 		}
 
-		if (sizeOfData > 0 && consumed >= sizeOfData) sd_eof = true;
+		//if (sizeOfData > 0 && consumed >= sizeOfData) sd_eof = true;
+		if (duration && consumed >= duration) sd_eof = true; 
 	
 	} while(!sd_eof /*&& !decode_res*/  ); //to check decode_res is evil for streams. (really ? TODO?)
 

@@ -42,93 +42,40 @@
 #error	This platform is not supported.
 #endif
 
-#ifndef helix_h
-#define helix_h
+#ifndef play_sd_mp3_h_
+#define play_sd_mp3_h_
 
-#warning HelixAac and HelixMp3 are deprecated.
+#include "AudioStream.h"
+#include "SD.h"
 
-
-//SD_BUF_SIZE: Size of buffer for SD reads.
-#define SD_BUF_SIZE		3072
-
-#define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
-#define AAC_BUF_SIZE	(AAC_MAX_NCHANS * AAC_MAX_NSAMPS) //AAC output buffer 2 * 1024 * sizeof(Int))
-
-#include <Audio.h>
-#include <SD.h>
-
-//Include decoders
-#include "common/assembly.h"
 #include "mp3/mp3dec.h"
-#include "aac/aacdec.h"
 
-//Errorcodes
+/* todo
 #define ERR_HMP3_NONE   	  	   0
-#define ERR_HMP3_NO_QUEUE   	   1
-#define ERR_HMP3_FILE_NOT_FOUND    2
-#define ERR_HMP3_OUT_OF_MEMORY     3
-#define ERR_HMP3_FORMAT			   4
-#define ERR_HMP3_DECODING_ERROR    5
+#define ERR_HMP3_FILE_NOT_FOUND    1
+#define ERR_HMP3_OUT_OF_MEMORY     2
+#define ERR_HMP3_FORMAT			   3	//File is not 44.1 KHz, 16Bit mono or stereo
+*/
 
-
-typedef struct {unsigned int position;unsigned int size;} ATOM;
-
-class Helix {
+class AudioPlaySdMp3 : public AudioStream
+{
 public:
-
-protected:
-	File			file;
-	uint8_t			*sd_buf;//uint8_t sd_buf[SD_BUF_SIZE];
-	uint8_t			*sd_p;
-	int				sd_left;
+	AudioPlaySdMp3(void) : AudioStream(0, NULL) { stop(); }		
+	bool play(const char *filename) ;
+	void stop(void);
+	bool isPlaying(void);
+	uint32_t positionMillis(void);
+	uint32_t lengthMillis(void);
 	
-	uint32_t 		read;	
-
-	AudioPlayQueue	*leftChannel;
-	AudioPlayQueue	*rightChannel;
-
-	uint32_t fillReadBuffer(uint8_t *data, uint32_t dataLeft);
-	void skipID3(void);
-
-	void fillAudioBuffers(short *buf, int numChannels, int len);
-};
-
-
-class HelixMp3 : public Helix {
-public:
-
-	short int play(const char *filename,  AudioPlayQueue *lftChannel,  AudioPlayQueue *rghtChannel)   __attribute__ ((deprecated));
-
+	void processorUsageMaxResetDecoder(void);	
+	float processorUsageMaxDecoder(void);
+	float processorUsageMaxSD(void);
+	
+	virtual void update(void);
+	
 private:
-		
-	HMP3Decoder		hMP3Decoder;
-	MP3FrameInfo	mp3FrameInfo;
-
+	audio_block_t	*block_left;
+	audio_block_t	*block_right;	
 };
-
-
-class HelixAac : public Helix {
-public:
 	
-	short int play(const char *filename,  AudioPlayQueue *lftChannel,  AudioPlayQueue *rghtChannel)   __attribute__ ((deprecated));
-
-private:
-
-	bool			isRAW;
-	
-	uint8_t  		channels;
-	uint8_t  		bits;	
-	uint16_t 		samplerate;
-	uint32_t		duration;
-	
-	uint32_t		firstFrame; //mp4/m4a only
-	//uint32_t		sizeOfData;
-	
-	HAACDecoder		hAACDecoder;
-	AACFrameInfo 	aacFrameInfo;
-
-	ATOM findMp4Atom(const char *atom, uint32_t posi);
-	void findMp4Mdat(void);
-};
-
 #endif
