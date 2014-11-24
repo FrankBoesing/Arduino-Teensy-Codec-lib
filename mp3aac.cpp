@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino interface
+	Helix library Arduino Audio Library MP3/AAC objects
 
 	Copyright (c) 2014 Frank Bösing
 
@@ -38,43 +38,74 @@
 
  /* The Helix-Library is modified for Teensy 3.1 */
 
-#ifndef TEENSYDUINO
-#error	This platform is not supported.
-#endif
-
-#ifndef play_sd_mp3_h_
-#define play_sd_mp3_h_
-
 #include "mp3aac.h"
-#include "AudioStream.h"
-#include "spi_interrupt.h"
-#include "mp3/mp3dec.h"
+#include "SD.h"
 
-/* todo
-#define ERR_HMP3_NONE   	  	   0
-#define ERR_HMP3_FILE_NOT_FOUND    1
-#define ERR_HMP3_OUT_OF_MEMORY     2
-#define ERR_HMP3_FORMAT			   3	//File is not 44.1 KHz, 16Bit mono or stereo
-*/
-
-class AudioPlaySdMp3 : public AudioStream
+//upgrade original audiointerrupt if needed (hackish...)
+void init_interrupt( void (*decoder)(void) )
 {
-public:
-	AudioPlaySdMp3(void) : AudioStream(0, NULL) { stop(); }
-	bool play(const char *filename) ;
-	void stop(void);
-	bool isPlaying(void);
-	uint32_t positionMillis(void);
-	uint32_t lengthMillis(void);
 
-	void processorUsageMaxResetDecoder(void);
-	float processorUsageMaxDecoder(void);
-	float processorUsageMaxSD(void);
+	int audioIntPrio = NVIC_GET_PRIORITY(IRQ_AUDIO);
+	if (audioIntPrio == 240) {
+		audioIntPrio = 224;
+		NVIC_SET_PRIORITY(IRQ_AUDIO, 224);
+	}
 
-	virtual void update(void);
+	_VectorsRam[IRQ_AUDIO2 + 16] = decoder;
 
-private:
+	NVIC_SET_PRIORITY(IRQ_AUDIO2, 240);
+	NVIC_ENABLE_IRQ(IRQ_AUDIO2);
+	
+}
+	
+// SD-buffer
+unsigned int fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, uint32_t dataLeft, uint32_t sd_bufsize)
+{
+	memmove(sd_buf, data, dataLeft);
 
-};
+	unsigned int spaceLeft = sd_bufsize - dataLeft;
+	unsigned int read = dataLeft;
+	unsigned int n;
 
-#endif
+	//Read 512 - byte blocks (faster)
+	if (spaceLeft>0)
+	{	
+		unsigned int num;
+		do {
+			num = min(512, spaceLeft);
+			n = file.read(sd_buf + dataLeft, num);
+			dataLeft += n;
+			spaceLeft -= n;
+			read +=n;
+	
+		} while (spaceLeft >= 512 && n == 512 );
+
+		if( n<num)
+		{ //Rest mit 0 füllen
+			memset(sd_buf + dataLeft, sd_bufsize - dataLeft, 0);
+		}
+
+	}
+
+	return read;
+}
+
+//Skip ID3-Tags at the beginning of the file.
+//http://id3.org/id3v2.4.0-structure
+unsigned int skipID3(uint8_t *sd_buf)
+{
+	if (sd_buf[0]=='I' && sd_buf[1]=='D' && sd_buf[2]=='3' &&
+		sd_buf[3]<0xff && sd_buf[4]<0xff &&
+		sd_buf[6]<0x80 && sd_buf[7]<0x80 &&
+		sd_buf[8]<0x80 && sd_buf[9]<0x80)
+	{
+		// bytes 6-9:offset of maindata, with bit.7=0:
+		int ofs =	((sd_buf[6] & 0x7f) << 21) |
+				((sd_buf[7] & 0x7f) << 14) |
+				((sd_buf[8] & 0x7f) <<  7) |
+				 (sd_buf[9] & 0x7f);
+	    return ofs;
+
+	}
+	else return 0;
+}

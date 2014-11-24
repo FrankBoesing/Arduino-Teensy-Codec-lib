@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino interface
+	Helix library Arduino Audio Library MP3/AAC objects
 
 	Copyright (c) 2014 Frank Bösing
 
@@ -37,44 +37,21 @@
  */
 
  /* The Helix-Library is modified for Teensy 3.1 */
-
 #ifndef TEENSYDUINO
 #error	This platform is not supported.
 #endif
 
-#ifndef play_sd_mp3_h_
-#define play_sd_mp3_h_
+#ifndef mp3aac_h_
+#define mp3aac_h_
 
-#include "mp3aac.h"
-#include "AudioStream.h"
-#include "spi_interrupt.h"
-#include "mp3/mp3dec.h"
+#include "SD.h"
 
-/* todo
-#define ERR_HMP3_NONE   	  	   0
-#define ERR_HMP3_FILE_NOT_FOUND    1
-#define ERR_HMP3_OUT_OF_MEMORY     2
-#define ERR_HMP3_FORMAT			   3	//File is not 44.1 KHz, 16Bit mono or stereo
-*/
+#define IRQ_AUDIO		IRQ_SOFTWARE	// see AudioStream.cpp
+#define IRQ_AUDIO2		56				// use a "reserved" (free) interrupt vector
 
-class AudioPlaySdMp3 : public AudioStream
-{
-public:
-	AudioPlaySdMp3(void) : AudioStream(0, NULL) { stop(); }
-	bool play(const char *filename) ;
-	void stop(void);
-	bool isPlaying(void);
-	uint32_t positionMillis(void);
-	uint32_t lengthMillis(void);
+void init_interrupt( void (*decoder)(void) );
 
-	void processorUsageMaxResetDecoder(void);
-	float processorUsageMaxDecoder(void);
-	float processorUsageMaxSD(void);
-
-	virtual void update(void);
-
-private:
-
-};
+unsigned int fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, uint32_t dataLeft, uint32_t sd_bufsize);
+unsigned int skipID3(uint8_t *sd_buf);
 
 #endif
