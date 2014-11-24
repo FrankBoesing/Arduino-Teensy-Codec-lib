@@ -345,7 +345,18 @@ static inline int MULSHIFT32(int x, int y)
     return y;
 }
 
+static inline short CLIPTOSHORT(int x) 
+{
+	int sign;
 
+	/* clip to [-32768, 32767] */
+	sign = x >> 31;
+	if (sign != (x >> 15))
+		x = sign ^ ((1 << 15) - 1);
+
+	return (short)x;
+}
+/*	
 static inline short CLIPTOSHORT(int x) 
 {
 //FB:
@@ -353,7 +364,7 @@ static inline short CLIPTOSHORT(int x)
 	asm volatile("ssat %0, #16, %1" : "=r" (out) : "r" (x));
 	return out;
 }
-
+*/
 
 #define CLIP_30(x) { asm volatile ("ssat %0, #30, %0" : "=r" (x) : "r" (x)); } //FB
 #define FASTABS(x) abs(x) //FB

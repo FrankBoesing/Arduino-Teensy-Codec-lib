@@ -139,8 +139,8 @@ static const int pow14[2][4] = {
 				if ( (FASTABS(cl) | FASTABS(cr)) >> 30 ) {
 					/* avoid overflow (rare) */
 					cl >>= 1;
-					sf = cl + (cr >> 1);	/*CLIP_2N(sf, 30); FB*/CLIP_30(sf);	sf <<= 1;
-					cl = cl - (cr >> 1);	/*CLIP_2N(cl, 30); FB*/CLIP_30(cl);	cl <<= 1;
+					sf = cl + (cr >> 1);	CLIP_2N(sf, 30); 	sf <<= 1;
+					cl = cl - (cr >> 1);	CLIP_2N(cl, 30); 	cl <<= 1;
 				} else {
 					/* usual case */
 					sf = cl + cr;
