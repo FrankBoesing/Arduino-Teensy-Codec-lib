@@ -77,8 +77,10 @@ void AudioPlaySdMp3::stop(void)
 }
 void AudioPlaySdMp3::pause(bool paused)
 {
-	if (paused) playing = 2; 
-	else playing = 1;
+	if (playing) {
+		if (paused) playing = 2; 
+		else playing = 1;
+	}
 }
 
 bool AudioPlaySdMp3::isPlaying(void)
