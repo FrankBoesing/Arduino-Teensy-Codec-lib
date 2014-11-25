@@ -42,7 +42,7 @@
 #include "play_sd_mp3.h"
 
 
-#define MP3_SD_BUF_SIZE	1024 + 512 								//Enough space for a complete stereo frame
+#define MP3_SD_BUF_SIZE	2048 								//Enough space for a complete stereo frame
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
 
 //There is currently no define for 44100 in the Audiolib..
@@ -293,11 +293,12 @@ void decode(void)
 			sd_p = sd_buf;
 	//}
 
-	cycles_sd = (ARM_DWT_CYCCNT - cycles_sd);
-	if (cycles_sd > decode_cycles_max_sd ) decode_cycles_max_sd = cycles_sd;
-
+	
 	cycles = ARM_DWT_CYCCNT;
-
+	cycles_sd = (cycles - cycles_sd);
+	if (cycles_sd > decode_cycles_max_sd ) decode_cycles_max_sd = cycles_sd;
+	
+	
 	// find start of next MP3 frame - assume EOF if no sync found
 	offset = MP3FindSyncWord(sd_p, sd_left);
 
