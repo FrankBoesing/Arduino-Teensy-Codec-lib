@@ -62,6 +62,7 @@ class AudioPlaySdMp3 : public AudioStream
 public:
 	AudioPlaySdMp3(void) : AudioStream(0, NULL) { stop(); }
 	bool play(const char *filename) ;
+	void pause(bool paused);
 	void stop(void);
 	bool isPlaying(void);
 	uint32_t positionMillis(void);
@@ -71,7 +72,7 @@ public:
 	float processorUsageMaxDecoder(void);
 	float processorUsageMaxSD(void);
 
-	virtual void update(void);
+	virtual void update(void)  __attribute__ ((optimize(2)));
 
 private:
 

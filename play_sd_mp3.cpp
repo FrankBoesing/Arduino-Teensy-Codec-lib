@@ -66,7 +66,7 @@ uint32_t		decode_cycles_max_sd;
 
 HMP3Decoder		hMP3Decoder;
 MP3FrameInfo	mp3FrameInfo;
-bool			playing;
+int				playing;
 
 static void decode(void);
 static void mp3stop(void);
@@ -75,10 +75,15 @@ void AudioPlaySdMp3::stop(void)
 {
 	mp3stop();
 }
+void AudioPlaySdMp3::pause(bool paused)
+{
+	if (paused) playing = 2; 
+	else playing = 1;
+}
 
 bool AudioPlaySdMp3::isPlaying(void)
 {
-	return playing;
+	return (playing > 0);
 }
 
 uint32_t AudioPlaySdMp3::positionMillis(void)
@@ -173,7 +178,7 @@ bool AudioPlaySdMp3::play(const char *filename){
 	}
 	decoding_block = 1;
 
-	playing = true;
+	playing = 1;
 	AudioStartUsingSPI();
     return true;
 }
@@ -184,7 +189,8 @@ void AudioPlaySdMp3::update(void)
 	audio_block_t	*block_left;
 	audio_block_t	*block_right;
 
-	if (!playing) return;
+	//paused or stopped ?
+	if (2==playing or 0==playing) return;
 
 	//chain decoder-interrupt
 	NVIC_SET_PENDING(IRQ_AUDIO2);
@@ -295,7 +301,7 @@ void decode(void)
 
 	if (offset < 0) {
 			//Serial.println("No sync"); //no error at end of file
-			playing = false;
+			playing = 0;
 			return;
 	}
 
@@ -340,7 +346,7 @@ void mp3stop(void)
 {
 	AudioStopUsingSPI();
 	__disable_irq();	
-	playing=false;		
+	playing = 0;		
 	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
 	if (sd_buf) {free(sd_buf);sd_buf = NULL;}
