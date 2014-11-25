@@ -57,12 +57,13 @@
 #define ERR_HMP3_FORMAT			   3	//File is not 44.1 KHz, 16Bit mono or stereo
 */
 
+
 class AudioPlaySdMp3 : public AudioStream
 {
 public:
 	AudioPlaySdMp3(void) : AudioStream(0, NULL) { stop(); }
 	bool play(const char *filename) ;
-	void pause(bool paused);
+	bool pause(bool paused);
 	void stop(void);
 	bool isPlaying(void);
 	uint32_t positionMillis(void);
@@ -77,5 +78,6 @@ public:
 private:
 
 };
+
 
 #endif

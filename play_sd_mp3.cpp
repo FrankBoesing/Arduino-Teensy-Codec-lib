@@ -55,6 +55,7 @@ File			file;
 uint8_t 		*sd_buf;
 uint8_t			*sd_p;
 int				sd_left;
+uint32_t 		size_id3;
 
 int16_t 		*buf[2];
 uint32_t		decoded_length[2];
@@ -75,13 +76,16 @@ void AudioPlaySdMp3::stop(void)
 {
 	mp3stop();
 }
-void AudioPlaySdMp3::pause(bool paused)
+
+bool AudioPlaySdMp3::pause(bool paused)
 {
 	if (playing) {
 		if (paused) playing = 2; 
 		else playing = 1;
 	}
+	return (playing == 2); 
 }
+
 
 bool AudioPlaySdMp3::isPlaying(void)
 {
@@ -95,13 +99,11 @@ uint32_t AudioPlaySdMp3::positionMillis(void)
 
 uint32_t AudioPlaySdMp3::lengthMillis(void)
 {
-//There is no Info about this in the header.
-//Counting all frames before playing means to read the whole file.
-//Should we really do this ? 
-//Or,can we guess ? More or less, alle Frames should be +- the same size, especially in sum.
-//Maybe, if we know the filesize and bitrate....
-//TODO !!
-	return 0;
+//This is an estimate, takes not into account VBR, but better than nothing:
+	if (playing) {
+		return (file.size() - size_id3) / (mp3FrameInfo.bitrate / 8 ) * 1000;
+	}
+	else return 0;
 }
 
 void AudioPlaySdMp3::processorUsageMaxResetDecoder(void){
@@ -146,10 +148,12 @@ bool AudioPlaySdMp3::play(const char *filename){
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf);
 	if (skip) {
+		size_id3 = skip;
 		int b = skip & 0xfffffe00;
-		file.seek(skip);
+		file.seek(b);
 		sd_left = 0;
-	}
+	} else size_id3 = 0;
+	
 	//Fill buffer from the beginning with fresh data
 	sd_left = fillReadBuffer(file, sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
 
@@ -178,8 +182,8 @@ bool AudioPlaySdMp3::play(const char *filename){
 		stop();
 		return false;
 	}
-	decoding_block = 1;
-
+	decoding_block = 1;	
+	
 	playing = 1;
 	AudioStartUsingSPI();
     return true;
@@ -304,8 +308,8 @@ void decode(void)
 
 	if (offset < 0) {
 			//Serial.println("No sync"); //no error at end of file
-			playing = 0;
-			return;
+			eof = true;
+			goto mp3end;
 	}
 
 	sd_p += offset;
@@ -334,15 +338,15 @@ void decode(void)
 				}
 		}
 
+	cycles = (ARM_DWT_CYCCNT - cycles);
+	if (cycles > decode_cycles_max ) decode_cycles_max = cycles;
+
 mp3end:
 	
 	if (eof) {
 		mp3stop();
 	} 
-		
-	cycles = (ARM_DWT_CYCCNT - cycles);
-	if (cycles > decode_cycles_max ) decode_cycles_max = cycles;
-	
+
 }
 
 void mp3stop(void)
