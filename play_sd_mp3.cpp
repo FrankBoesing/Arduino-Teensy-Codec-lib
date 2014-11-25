@@ -46,7 +46,7 @@
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
 
 //There is currently no define for 44100 in the Audiolib..
-#define AUDIOMP3_SAMPLE_RATE 44100
+#define AUDIOMP3_SAMPLE_RATE (((int)(AUDIO_SAMPLE_RATE / 100)) * 100)
 
 
 
@@ -59,7 +59,7 @@ int				sd_left;
 int16_t 		*buf[2];
 uint32_t		decoded_length[2];
 int32_t			decoding_block;
-
+int32_t 		play_pos;
 uint32_t	    samples_played;
 uint32_t		decode_cycles_max;
 uint32_t		decode_cycles_max_sd;
@@ -68,23 +68,12 @@ HMP3Decoder		hMP3Decoder;
 MP3FrameInfo	mp3FrameInfo;
 bool			playing;
 
-static void decode(void) __attribute__ ((hot));
+static void decode(void);
+static void mp3stop(void);
 
 void AudioPlaySdMp3::stop(void)
 {
-	if (playing) {
-		AudioStopUsingSPI();
-		__disable_irq();
-		playing=false;
-		__enable_irq();
-	}
-	file.close();
-
-	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
-	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
-	if (sd_buf) {free(sd_buf);sd_buf = NULL;}
-
-	if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
+	mp3stop();
 }
 
 bool AudioPlaySdMp3::isPlaying(void)
@@ -144,14 +133,14 @@ bool AudioPlaySdMp3::play(const char *filename){
 		return false;
 	}
 
-	//Read-ahead 10 Bytes to detect ID3
+	//Read-ahead 10 Bytes to detect ID3	
 	sd_left = file.read(sd_buf, 10);
 
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf);
 	if (skip) {
 		int b = skip & 0xfffffe00;
-		file.seek(b);
+		file.seek(skip);
 		sd_left = 0;
 	}
 	//Fill buffer from the beginning with fresh data
@@ -166,13 +155,14 @@ bool AudioPlaySdMp3::play(const char *filename){
 
 	decoded_length[0] = 0;
 	decoded_length[1] = 0;
-
+	play_pos = 0;
 	samples_played = 0;
 
 	decode_cycles_max_sd = 0;
 	decode_cycles_max = 0;
 
 	decoding_block = 0;
+	
 	sd_p = sd_buf;
 
 	decode();
@@ -189,9 +179,8 @@ bool AudioPlaySdMp3::play(const char *filename){
 }
 
 //runs in ISR
-void AudioPlaySdMp3::update(void)
+void AudioPlaySdMp3::update(void) 
 {
-	static int 		play_pos = 0;
 	audio_block_t	*block_left;
 	audio_block_t	*block_right;
 
@@ -248,8 +237,7 @@ void AudioPlaySdMp3::update(void)
 
 		int j = 0;
 		int k = play_pos;
-		do {
-		//for (int i=0; i < AUDIO_BLOCK_SAMPLES / 4 ; i++) {
+		do {	
 			block_left->data[j]=b[k];
 			j++;k++;
 			block_left->data[j]=b[k];
@@ -266,7 +254,7 @@ void AudioPlaySdMp3::update(void)
 
 	}
 
-	samples_played+=AUDIO_BLOCK_SAMPLES;
+	samples_played += AUDIO_BLOCK_SAMPLES;
 
 	release(block_left);
 
@@ -281,22 +269,29 @@ void AudioPlaySdMp3::update(void)
 //decoding-interrupt
 void decode(void)
 {
-	if (decoded_length[decoding_block]) return; //this block is playing, do NOT fill it
 
-	uint32_t cycles_sd = ARM_DWT_CYCCNT;
+	int eof = false;
+	int offset;
+	int decode_res;
+	uint32_t cycles, cycles_sd;
+	
+	if (decoded_length[decoding_block]) return; //this block is playing, do NOT fill it
+		
+	cycles_sd = ARM_DWT_CYCCNT;
 
 	//if (sd_left < 1024) { //todo: optimize 1024..
 			sd_left = fillReadBuffer( file, sd_buf, sd_p, sd_left, MP3_SD_BUF_SIZE);
+			if (!sd_left) { eof = true; goto mp3end; }
 			sd_p = sd_buf;
 	//}
 
 	cycles_sd = (ARM_DWT_CYCCNT - cycles_sd);
 	if (cycles_sd > decode_cycles_max_sd ) decode_cycles_max_sd = cycles_sd;
 
-	uint32_t cycles = ARM_DWT_CYCCNT;
+	cycles = ARM_DWT_CYCCNT;
 
 	// find start of next MP3 frame - assume EOF if no sync found
-	int offset = MP3FindSyncWord(sd_p, sd_left);
+	offset = MP3FindSyncWord(sd_p, sd_left);
 
 	if (offset < 0) {
 			//Serial.println("No sync"); //no error at end of file
@@ -307,8 +302,7 @@ void decode(void)
 	sd_p += offset;
 	sd_left -= offset;
 
-	int eof = false;
-	int decode_res = MP3Decode(hMP3Decoder, &sd_p, &sd_left,(short*)&buf[decoding_block][0], 0);
+	decode_res = MP3Decode(hMP3Decoder, &sd_p, &sd_left,(short*)&buf[decoding_block][0], 0);
 
 	switch(decode_res)
 		{
@@ -331,9 +325,26 @@ void decode(void)
 				}
 		}
 
-	__disable_irq();
-	if (eof) playing = false;
+mp3end:
+	
+	if (eof) {
+		mp3stop();
+	} 
+		
 	cycles = (ARM_DWT_CYCCNT - cycles);
 	if (cycles > decode_cycles_max ) decode_cycles_max = cycles;
+	
+}
+
+void mp3stop(void)
+{
+	AudioStopUsingSPI();
+	__disable_irq();	
+	playing=false;		
+	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
+	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
+	if (sd_buf) {free(sd_buf);sd_buf = NULL;}
+	if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
 	__enable_irq();
+	file.close();
 }
