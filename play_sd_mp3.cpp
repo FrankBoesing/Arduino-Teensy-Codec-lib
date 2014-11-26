@@ -49,28 +49,13 @@
 #define AUDIOMP3_SAMPLE_RATE (((int)(AUDIO_SAMPLE_RATE / 100)) * 100)
 
 
+static	HMP3Decoder		hMP3Decoder;
+static	MP3FrameInfo	mp3FrameInfo;
 
-File			file;
-
-uint8_t 		*sd_buf;
-uint8_t			*sd_p;
-int				sd_left;
-uint32_t 		size_id3;
-
-int16_t 		*buf[2];
-uint32_t		decoded_length[2];
-int32_t			decoding_block;
-int32_t 		play_pos;
-uint32_t	    samples_played;
-uint32_t		decode_cycles_max;
-uint32_t		decode_cycles_max_sd;
-
-HMP3Decoder		hMP3Decoder;
-MP3FrameInfo	mp3FrameInfo;
-int				playing;
 
 static void decode(void);
 static void mp3stop(void);
+
 
 void AudioPlaySdMp3::stop(void)
 {
@@ -102,6 +87,14 @@ uint32_t AudioPlaySdMp3::lengthMillis(void)
 //This is an estimate, takes not into account VBR, but better than nothing:
 	if (playing) {
 		return (file.size() - size_id3) / (mp3FrameInfo.bitrate / 8 ) * 1000;
+	}
+	else return 0;
+}
+
+uint32_t AudioPlaySdMp3::bitrate(void)
+{
+	if (playing) {
+		return mp3FrameInfo.bitrate;
 	}
 	else return 0;
 }
@@ -178,7 +171,7 @@ bool AudioPlaySdMp3::play(const char *filename){
 
 	decode();
 	if((mp3FrameInfo.samprate != AUDIOMP3_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
-		Serial.println("incompatible MP3 file.");
+		//Serial.println("incompatible MP3 file.");
 		stop();
 		return false;
 	}
@@ -322,7 +315,7 @@ void decode(void)
 			case ERR_MP3_NONE:
 				{
 					MP3GetLastFrameInfo(hMP3Decoder, &mp3FrameInfo);
-					decoded_length[decoding_block] = mp3FrameInfo.outputSamps;
+					decoded_length[decoding_block] = mp3FrameInfo.outputSamps;					
 					break;
 				}
 

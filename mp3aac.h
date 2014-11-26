@@ -49,6 +49,23 @@
 #define IRQ_AUDIO		IRQ_SOFTWARE	// see AudioStream.cpp
 #define IRQ_AUDIO2		56				// use a "reserved" (free) interrupt vector
 
+extern File			file;
+
+extern uint8_t 		*sd_buf;
+extern uint8_t		*sd_p;
+extern int			sd_left;
+extern uint32_t 	size_id3;
+
+extern int16_t 		*buf[2];
+extern uint32_t		decoded_length[2];
+extern int32_t		decoding_block;
+extern int32_t 		play_pos;
+extern uint32_t	    samples_played;
+extern int			playing;
+
+extern uint32_t		decode_cycles_max;
+extern uint32_t		decode_cycles_max_sd;
+
 void init_interrupt( void (*decoder)(void) );
 
 unsigned int fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, uint32_t dataLeft, uint32_t sd_bufsize);

@@ -41,6 +41,25 @@
 #include "mp3aac.h"
 #include "SD.h"
 
+File			file;
+
+uint8_t 		*sd_buf;
+uint8_t			*sd_p;
+int				sd_left;
+uint32_t 		size_id3;
+
+int16_t 		*buf[2];
+uint32_t		decoded_length[2];
+int32_t			decoding_block;
+int32_t 		play_pos;
+uint32_t	    samples_played;
+uint32_t		bitrate_avg;
+int				playing;
+
+uint32_t		decode_cycles_max;
+uint32_t		decode_cycles_max_sd;
+
+
 //upgrade original audiointerrupt if needed (hackish...)
 void init_interrupt( void (*decoder)(void) )
 {

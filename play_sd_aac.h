@@ -42,26 +42,30 @@
 #error	This platform is not supported.
 #endif
 
-#ifndef play_sd_mp3_h_
-#define play_sd_mp3_h_
+#ifndef play_sd_aac_h_
+#define play_sd_aac_h_
 
 #include "mp3aac.h"
 #include "AudioStream.h"
 #include "spi_interrupt.h"
-#include "mp3/mp3dec.h"
+#include "aac/aacdec.h"
 
 /* todo
-#define ERR_HMP3_NONE   	  	   0
-#define ERR_HMP3_FILE_NOT_FOUND    1
-#define ERR_HMP3_OUT_OF_MEMORY     2
-#define ERR_HMP3_FORMAT			   3	//File is not 44.1 KHz, 16Bit mono or stereo
+#define ERR_HAAC_NONE   	  	   0
+#define ERR_HAAC_FILE_NOT_FOUND    1
+#define ERR_HAAC_OUT_OF_MEMORY     2
+#define ERR_HAAC_FORMAT			   3	//File is not 44.1 KHz, 16Bit mono or stereo
 */
 
 
-class AudioPlaySdMp3 : public AudioStream
+struct _ATOM		{unsigned int position;unsigned int size;};
+struct _ATOMINFO	{uint32_t size;char name[4];};
+
+
+class AudioPlaySdAac : public AudioStream
 {
 public:
-	AudioPlaySdMp3(void) : AudioStream(0, NULL) { stop(); }
+	AudioPlaySdAac(void) : AudioStream(0, NULL) { stop(); }
 	bool play(const char *filename) ;
 	bool pause(bool paused);
 	void stop(void);
@@ -74,10 +78,14 @@ public:
 	float processorUsageMaxDecoder(void);
 	float processorUsageMaxSD(void);
 
-	virtual void update(void)  __attribute__ ((optimize(2)));
-
+	_ATOM findMp4Atom(const char *atom, uint32_t posi);
 private:
 
+	uint32_t	duration;
+		
+	uint32_t	setupMp4(void);	
+	void setupDecoder(int channels, int samplerate, int profile);
+	void update(void)  __attribute__ ((optimize(2)));
 };
 
 
