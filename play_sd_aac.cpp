@@ -49,13 +49,15 @@
 #define AUDIOAAC_SAMPLE_RATE (((int)(AUDIO_SAMPLE_RATE / 100)) * 100)
 
 
-static bool			isRAW;			//Raw file means, it is AAC(streamable)
+static bool			isRAW;				//Raw file means, it is AAC(streamable)
+static uint32_t 	firstChunk, lastChunk;//for MP4/M4A
 static HAACDecoder	hAACDecoder;
 static AACFrameInfo	aacFrameInfo;
 
+static uint16_t fread16(uint32_t position);
+static uint32_t fread32(uint32_t position);
 static void decode(void);
 static void aacstop(void);
-
 
 
 void AudioPlaySdAac::stop(void)
@@ -149,50 +151,46 @@ _ATOM AudioPlaySdAac::findMp4Atom(const char *atom, uint32_t posi)
 
 }
 
-uint32_t AudioPlaySdAac::setupMp4(void)
+bool AudioPlaySdAac::setupMp4(void)
 {
 
 	_ATOM ftyp = findMp4Atom("ftyp",0);
-	if (!ftyp.size) 
-		return 0; //no mp4/m4a file
+	if (!ftyp.size)
+		return false; //no mp4/m4a file
 
-	uint32_t 	tmp32;
-	
 	//go through the boxes to find the interesting atoms:
-	uint32_t moov = findMp4Atom("moov", 0).position;	
-	uint32_t trak = findMp4Atom("trak", moov + 8).position;	
-	uint32_t mdia = findMp4Atom("mdia", trak + 8).position;	
+	uint32_t moov = findMp4Atom("moov", 0).position;
+	uint32_t trak = findMp4Atom("trak", moov + 8).position;
+	uint32_t mdia = findMp4Atom("mdia", trak + 8).position;
 
 	//determine duration:
 	uint32_t mdhd = findMp4Atom("mdhd", mdia + 8).position;
-	file.seek(mdhd + 8 + 0x0c);
-	file.read((uint8_t *) &tmp32, sizeof(tmp32));	
-	uint32_t timescale = REV32(tmp32);	
-	file.read((uint8_t *) &tmp32, sizeof(tmp32));	
-	duration = ((float) REV32(tmp32) / (float)timescale) * 1000;
+	uint32_t timescale = fread32(mdhd + 8 + 0x0c);
+	duration = 1000.0 * ((float)fread32(mdhd + 8 + 0x10) / (float)timescale);
 
+	//MP4-data has no aac-frames, so we have to set the parameters by hand.
 	uint32_t minf = findMp4Atom("minf", mdia + 8).position;
 	uint32_t stbl = findMp4Atom("stbl", minf + 8).position;
-
-	//stsd sample description box - great info to parametrize the decoder
+	//stsd sample description box: - infos to parametrize the decoder
 	_ATOM stsd = findMp4Atom("stsd", stbl + 8);
-	if (!stsd.size) 
-		return 0; //something is gone wrong
+	if (!stsd.size)
+		return false; //something is not ok
 
-	file.read(sd_buf, 0x30);
-	uint16_t channels	= sd_buf[0x21];
-	//uint16_t bits		= sd_buf[0x23]; //not used
-	uint16_t samplerate	= ((uint16_t) sd_buf[0x28]<<8 | (uint16_t) sd_buf[0x29]);
-	
-	//MP4-data has no aac-frames, so we have to set the parameters by hand:
+	uint16_t channels = fread16(stsd.position + 8 + 0x20);
+	//uint16_t bits		= fread16(stsd.position + 8 + 0x22); //not used
+	uint16_t samplerate = fread32(stsd.position + 8 + 0x26);
+
 	setupDecoder(channels, samplerate, AAC_PROFILE_LC);
 
-	//stco - chunk offset atom
+	//stco - chunk offset atom:
 	uint32_t stco = findMp4Atom("stco", stbl + 8).position;
-	//read entry #1 from chunk table, ignore entry #0 for beginning of audiodata:
-	file.seek(stco + 8 + 0x0c);
-	file.read((uint8_t *) &tmp32, sizeof(tmp32));	
-	uint32_t firstFrame = REV32(tmp32);
+
+	//number of chunks:
+	uint32_t nChunks = fread32(stco + 8 + 0x04);
+	//first entry from chunk table:
+	firstChunk = fread32(stco + 8 + 0x08);
+	//last entry from chunk table:
+	lastChunk = fread32(stco + 8 + 0x04 + nChunks * 4);
 
 #if 0
 	Serial.print("mdhd duration=");
@@ -201,11 +199,15 @@ uint32_t AudioPlaySdAac::setupMp4(void)
 	Serial.print(channels);
 	Serial.print(" samplerate=");
 	Serial.print(samplerate);
-	Serial.print(" firstFrame=");
-	Serial.println(firstFrame, HEX);
+	Serial.print(" nChunks=");
+	Serial.print(nChunks);
+	Serial.print(" firstChunk=");
+	Serial.println(firstChunk, HEX);
+	Serial.print(" lastChunk=");
+	Serial.println(lastChunk, HEX);
 #endif
 
-	return firstFrame;
+	return true;
 }
 
 void AudioPlaySdAac::setupDecoder(int channels, int samplerate, int profile)
@@ -237,9 +239,8 @@ bool AudioPlaySdAac::play(const char *filename){
 	duration = 0;
 	sd_left = 0;
 
-	int skip = setupMp4();
-	if (skip) {
-		file.seek(skip);
+	if (setupMp4()) {
+		file.seek(firstChunk);
 		sd_left = 0;
 		isRAW = false;
 	}
@@ -248,7 +249,7 @@ bool AudioPlaySdAac::play(const char *filename){
 		//Read-ahead 10 Bytes to detect ID3
 		sd_left = file.read(sd_buf, 10);
 		//Skip ID3, if existent
-		skip = skipID3(sd_buf);
+		uint32_t skip = skipID3(sd_buf);
 		if (skip) {
 			size_id3 = skip;
 			int b = skip & 0xfffffe00;
@@ -326,7 +327,7 @@ void AudioPlaySdAac::update(void)
 		int j = 0;
 		int k = play_pos;
 		do {
-		
+
 			block_left->data[j]=b[k];	k++;
 			block_right->data[j]=b[k];	k++;
 			j++;
@@ -354,7 +355,7 @@ void AudioPlaySdAac::update(void)
 		int j = 0;
 		int k = play_pos;
 		do {
-		
+
 			block_left->data[j]=b[k];
 			j++;k++;
 			block_left->data[j]=b[k];
@@ -363,7 +364,7 @@ void AudioPlaySdAac::update(void)
 			j++;k++;
 			block_left->data[j]=b[k];
 			j++;k++;
-			
+
 		} while (j < AUDIO_BLOCK_SAMPLES);
 		play_pos = k;
 		transmit(block_left, 0);
@@ -421,26 +422,19 @@ void decode(void)
 
 	decode_res = AACDecode(hAACDecoder, &sd_p, &sd_left,(short*)&buf[decoding_block][0]);
 
-	switch(decode_res)
-		{
-			case ERR_AAC_NONE:
-				{
-					AACGetLastFrameInfo(hAACDecoder, &aacFrameInfo);
-					decoded_length[decoding_block] = aacFrameInfo.outputSamps;
-					break;
-				}
+	if (!decode_res) {
+		AACGetLastFrameInfo(hAACDecoder, &aacFrameInfo);
+		decoded_length[decoding_block] = aacFrameInfo.outputSamps;
+	} else {
+		Serial.print("err:");Serial.println(decode_res);
+		eof = true;
+		//goto aacend;
+	}
 
-			case ERR_AAC_INDATA_UNDERFLOW:
-				{
-					break;
-				}
-
-			default :
-				{
-					eof = true;
-					break;
-				}
-		}
+	if (!isRAW && file.position() > lastChunk) {
+		eof = true;
+		//goto aacend;
+	}
 
 	cycles = (ARM_DWT_CYCCNT - cycles);
 	if (cycles > decode_cycles_max ) decode_cycles_max = cycles;
@@ -450,6 +444,28 @@ aacend:
 	if (eof) {
 		aacstop();
 	}
+
+}
+
+//read 16-Bit from fileposition(position)
+uint16_t fread16(uint32_t position)
+{
+	uint16_t tmp16;
+
+	file.seek(position);
+	file.read((uint8_t *) &tmp16, sizeof(tmp16));
+	return REV16(tmp16);
+
+}
+
+//read 32-Bit from fileposition(position)
+uint32_t fread32(uint32_t position)
+{
+	uint32_t tmp32;
+
+	file.seek(position);
+	file.read((uint8_t *) &tmp32, sizeof(tmp32));
+	return REV32(tmp32);
 
 }
 

@@ -358,7 +358,7 @@ static inline short CLIPTOSHORT(int x)
 }
 /*	
 static inline short CLIPTOSHORT(int x) 
-{
+{ not correct(?!)
 //FB:
 	short out;
 	asm volatile("ssat %0, #16, %1" : "=r" (out) : "r" (x));
@@ -366,16 +366,23 @@ static inline short CLIPTOSHORT(int x)
 }
 */
 
-#define CLIP_30(x) { asm volatile ("ssat %0, #30, %0" : "=r" (x) : "r" (x)); } //FB
 #define FASTABS(x) abs(x) //FB
 #define CLZ(x) __builtin_clz(x) //FB
+
+//Reverse byte order (16 bit) //FB
+static inline unsigned int REV16( unsigned int value)
+{
+	unsigned int result;
+	asm volatile ("rev16 %0, %1" : "=r" (result) : "r" (value) );
+	return(result);
+}
 
 //Reverse byte order (32 bit) //FB
 static inline unsigned int REV32( unsigned int value)
 {
-   unsigned int result;
-  asm volatile ("rev %0, %1" : "=r" (result) : "r" (value) );
-  return(result);
+	unsigned int result;
+	asm volatile ("rev %0, %1" : "=r" (result) : "r" (value) );
+	return(result);
 }
 
 

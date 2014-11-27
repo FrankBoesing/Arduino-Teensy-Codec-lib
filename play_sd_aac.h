@@ -78,13 +78,13 @@ public:
 	float processorUsageMaxDecoder(void);
 	float processorUsageMaxSD(void);
 
+	void setupDecoder(int channels, int samplerate, int profile);
 	_ATOM findMp4Atom(const char *atom, uint32_t posi);
 private:
 
 	uint32_t	duration;
-		
-	uint32_t	setupMp4(void);	
-	void setupDecoder(int channels, int samplerate, int profile);
+
+	bool setupMp4(void);
 	void update(void)  __attribute__ ((optimize(2)));
 };
 
