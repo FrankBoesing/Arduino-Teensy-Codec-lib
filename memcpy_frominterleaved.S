@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino Audio Library MP3/AAC objects
+	Helix library Arduino interface
 
 	Copyright (c) 2014 Frank Bösing
 
@@ -36,49 +36,48 @@
 
  */
 
- /* The Helix-Library is modified for Teensy 3.1 */
-#ifndef TEENSYDUINO
-#error	This platform is not supported.
-#endif
+//Fast copy decoded data (interleaved LRLRLR) to the two audiobuffers (LLL, RRR)
+ 
+ .cpu cortex-m4
+.syntax unified
+.thumb
+.text
+.align	2
 
-#ifndef mp3aac_h_
-#define mp3aac_h_
+/* void memcpy_frominterleaved(short *dst1, short *dst2, short *src); */
+ .global	memcpy_frominterleaved
+.thumb_func	
+	memcpy_frominterleaved:
 
-#include "SD.h"
+	@ r0: dst1
+	@ r1: dst2
+	@ r2: src
 
-#define IRQ_AUDIO		IRQ_SOFTWARE	// see AudioStream.cpp
-#define IRQ_AUDIO2		56				// use a "reserved" (free) interrupt vector
+	push	{r0, r4-r6}
+	mov r6, #4 - 1
+	//mov r6, #64 - 1
+	.align 2	
+.loop:
+	.irp offset, 1,2,3,4, 5,6,7,8, 9,10,11,12, 13,14,15,16
+
+	ldr r3, [r2], #4
+	ldr r4, [r2], #4
+
+	mov r5, r3, lsr #16	
+	strh r5,[r0], #2
+	mov r5, r4, lsr #16	
+	strh r5,[r0], #2
+	
+	strh r3,[r1], #2
+	strh r4,[r1], #2
+
+	.endr
+	
+	subs r6, #1
+	bhs .loop
+	
+	pop	{r0, r4-r6}
+	
+.END
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-void memcpy_frominterleaved(short *dst1, short *dst2, short *src);
-#ifdef __cplusplus
-}
-#endif
-
-
-extern File			file;
-
-extern uint8_t 		*sd_buf;
-extern uint8_t		*sd_p;
-extern int			sd_left;
-extern uint32_t 	size_id3;
-
-extern int16_t 		*buf[2];
-extern uint32_t		decoded_length[2];
-extern int32_t		decoding_block;
-extern int32_t 		play_pos;
-extern uint32_t	    samples_played;
-extern int			playing;
-
-extern uint32_t		decode_cycles_max;
-extern uint32_t		decode_cycles_max_sd;
-
-void init_interrupt( void (*decoder)(void) );
-
-unsigned int fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, uint32_t dataLeft, uint32_t sd_bufsize);
-unsigned int skipID3(uint8_t *sd_buf);
-
-#endif

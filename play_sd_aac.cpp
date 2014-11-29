@@ -313,8 +313,6 @@ void AudioPlaySdAac::update(void)
 	block_left = allocate();
 	if (block_left == NULL) return;
 
-	int16_t *b = &buf[playing_block][0];
-
 	if (aacFrameInfo.nChans == 2) {
 		// if we're playing stereo, allocate another
 		// block for the right channel output
@@ -324,49 +322,21 @@ void AudioPlaySdAac::update(void)
 			return;
 		}
 
-		int j = 0;
-		int k = play_pos;
-		do {
-
-			block_left->data[j]=b[k];	k++;
-			block_right->data[j]=b[k];	k++;
-			j++;
-			block_left->data[j]=b[k];	k++;
-			block_right->data[j]=b[k];	k++;
-			j++;
-			block_left->data[j]=b[k];	k++;
-			block_right->data[j]=b[k];	k++;
-			j++;
-			block_left->data[j]=b[k];	k++;
-			block_right->data[j]=b[k];	k++;
-			j++;
-
-		} while (j < AUDIO_BLOCK_SAMPLES);
-		play_pos = k;
+		memcpy_frominterleaved(&block_left->data[0],&block_right->data[0],&buf[playing_block][play_pos]);
+		
+		play_pos += AUDIO_BLOCK_SAMPLES * 2 ;
 		transmit(block_left, 0);
 		transmit(block_right, 1);
 		release(block_right);
 		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES * 2;
 
-	} else
-	if (aacFrameInfo.nChans == 1) {
+	} else 
+	{
 		// if we're playing mono, no right-side block
-
-		int j = 0;
-		int k = play_pos;
-		do {
-
-			block_left->data[j]=b[k];
-			j++;k++;
-			block_left->data[j]=b[k];
-			j++;k++;
-			block_left->data[j]=b[k];
-			j++;k++;
-			block_left->data[j]=b[k];
-			j++;k++;
-
-		} while (j < AUDIO_BLOCK_SAMPLES);
-		play_pos = k;
+		// let's do a (hopefully good optimized) simple memcpy
+		memcpy(&block_left->data[0], &buf[playing_block][play_pos], AUDIO_BLOCK_SAMPLES * sizeof(short));
+		
+		play_pos += AUDIO_BLOCK_SAMPLES;
 		transmit(block_left, 0);
 		transmit(block_left, 1);
 		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES;
