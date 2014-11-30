@@ -54,7 +54,6 @@ int32_t			decoding_block;
 int32_t 		play_pos;
 uint32_t	    samples_played;
 uint32_t		bitrate_avg;
-int				playing;
 
 uint32_t		decode_cycles_max;
 uint32_t		decode_cycles_max_sd;

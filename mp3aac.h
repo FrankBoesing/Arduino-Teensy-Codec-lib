@@ -71,7 +71,6 @@ extern uint32_t		decoded_length[2];
 extern int32_t		decoding_block;
 extern int32_t 		play_pos;
 extern uint32_t	    samples_played;
-extern int			playing;
 
 extern uint32_t		decode_cycles_max;
 extern uint32_t		decode_cycles_max_sd;

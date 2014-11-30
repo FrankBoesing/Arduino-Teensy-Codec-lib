@@ -48,8 +48,8 @@
 //There is currently no define for 44100 in the Audiolib..
 #define AUDIOMP3_SAMPLE_RATE (((int)(AUDIO_SAMPLE_RATE / 100)) * 100)
 
-
-static	HMP3Decoder		hMP3Decoder;
+static  int				playing;
+static  HMP3Decoder		hMP3Decoder;
 static	MP3FrameInfo	mp3FrameInfo;
 
 

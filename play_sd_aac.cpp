@@ -48,7 +48,7 @@
 //There is currently no define for 44100 in the Audiolib..
 #define AUDIOAAC_SAMPLE_RATE (((int)(AUDIO_SAMPLE_RATE / 100)) * 100)
 
-
+static int					playing;
 static bool			isRAW;				//Raw file means, it is AAC(streamable)
 static uint32_t 	firstChunk, lastChunk;//for MP4/M4A
 static HAACDecoder	hAACDecoder;
