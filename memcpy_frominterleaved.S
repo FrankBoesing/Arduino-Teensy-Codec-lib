@@ -87,7 +87,8 @@
 	bhs .loop
 	
 	pop	{r0, r4-r10,r12}
-	
+
+	BX lr
 .END
 
 
