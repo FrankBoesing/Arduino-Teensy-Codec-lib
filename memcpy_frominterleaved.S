@@ -53,40 +53,41 @@
 	@ r1: dst2
 	@ r2: src
 
-	push	{r0, r4-r10, r12}
-	mov r12, #4 - 1
+	push	{r0, r4-r8}
+	mov r8, #4 - 1
 	//mov r12, #64 - 1
 	.align 2	
 .loop:
 	//.irp offset, 1,2,3,4, 5,6,7,8, 9,10,11,12, 13,14,15,16
 	.irp offset, 1,2,3,4, 5,6,7,8
 
-	//load 4 words (16 byte)  at once into r3,r4, increase adress of r2
-	ldmia r2!,{r3,r4,r7,r8}
-	
 	// Neighboring load and store single instructions can pipeline their address and data phases. 
 	// This enables these instructions to complete in a single execution cycle
+	
+	//load 4 words (16 byte)  at once into r3,r4, increase adress of r2
+	ldmia r2!,{r3,r4,r5,r6}
+	
 
 	strh r3,[r1], #2
 	strh r4,[r1], #2
-	strh r7,[r1], #2
-	strh r8,[r1], #2
+	strh r5,[r1], #2
+	strh r6,[r1], #2
 	
-	mov r5, r3, lsr #16	
-	mov r6, r4, lsr #16		
-	mov r9, r7, lsr #16	
-	mov r10, r8, lsr #16		
-	strh r5,[r0], #2
-	strh r6,[r0], #2
-	strh r9,[r0], #2	
-	strh r10,[r0], #2
+	mov r7, r3, lsr #16	
+	strh r7,[r0], #2
+	mov r7, r4, lsr #16		
+	strh r7,[r0], #2
+	mov r7, r5, lsr #16	
+	strh r7,[r0], #2
+	mov r7, r6, lsr #16		
+	strh r7,[r0], #2
 	
 	.endr
 	
-	subs r12, #1
+	subs r8, #1
 	bhs .loop
 	
-	pop	{r0, r4-r10,r12}
+	pop	{r0, r4-r8}
 
 	BX lr
 .END
