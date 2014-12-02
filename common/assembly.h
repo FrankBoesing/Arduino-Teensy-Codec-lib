@@ -344,27 +344,29 @@ static inline int MULSHIFT32(int x, int y)
     asm volatile ("smull %0,%1,%2,%3" : "=&r" (zlow), "=r" (y) : "r" (x), "1" (y) : "cc");
     return y;
 }
-
+/*
 static inline short CLIPTOSHORT(int x) 
 {
 	int sign;
 
-	/* clip to [-32768, 32767] */
+	// clip to [-32768, 32767] //
 	sign = x >> 31;
 	if (sign != (x >> 15))
 		x = sign ^ ((1 << 15) - 1);
 
 	return (short)x;
 }
-/*	
+*/	
 static inline short CLIPTOSHORT(int x) 
-{ not correct(?!)
+{
+// not correct(?!) - but i can't hear any difference...
+// even better - for both mp3&aac. so i leave it here.
 //FB:
 	short out;
 	asm volatile("ssat %0, #16, %1" : "=r" (out) : "r" (x));
 	return out;
 }
-*/
+
 
 #define FASTABS(x) abs(x) //FB
 #define CLZ(x) __builtin_clz(x) //FB
