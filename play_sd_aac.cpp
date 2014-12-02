@@ -300,10 +300,10 @@ void AudioPlaySdAac::update(void)
 	audio_block_t	*block_right;
 
 	//paused or stopped ?
-	if (2==playing or 0==playing) return;
+	if (0==playing or 2==playing) return;
 
 	//chain decoder-interrupt
-	NVIC_SET_PENDING(IRQ_AUDIO2);
+	NVIC_TRIGGER_INTERRUPT(IRQ_AUDIO2);
 
 	//determine the block we're playing from
 	int playing_block = 1 - decoding_block;

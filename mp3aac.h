@@ -49,6 +49,8 @@
 #define IRQ_AUDIO		IRQ_SOFTWARE	// see AudioStream.cpp
 #define IRQ_AUDIO2		56				// use a "reserved" (free) interrupt vector
 
+#define NVIC_STIR		(*(volatile uint32_t *)0xE000EF00) //Software Trigger Interrupt Register
+#define NVIC_TRIGGER_INTERRUPT(x)    NVIC_STIR=(x);
 
 #ifdef __cplusplus
 extern "C" {
