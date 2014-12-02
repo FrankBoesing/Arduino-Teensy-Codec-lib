@@ -53,7 +53,7 @@ uint32_t		decoded_length[2];
 int32_t			decoding_block;
 int32_t 		play_pos;
 uint32_t	    samples_played;
-uint32_t		bitrate_avg;
+
 
 uint32_t		decode_cycles_max;
 uint32_t		decode_cycles_max_sd;
@@ -66,12 +66,12 @@ void init_interrupt( void (*decoder)(void) )
 	int audioIntPrio = NVIC_GET_PRIORITY(IRQ_AUDIO);
 	if (audioIntPrio == 240) {
 		audioIntPrio = 224;
-		NVIC_SET_PRIORITY(IRQ_AUDIO, 224);
+		NVIC_SET_PRIORITY(IRQ_AUDIO, audioIntPrio);
 	}
 
 	_VectorsRam[IRQ_AUDIO2 + 16] = decoder;
 
-	NVIC_SET_PRIORITY(IRQ_AUDIO2, 240);
+	NVIC_SET_PRIORITY(IRQ_AUDIO2, audioIntPrio + 0x10);
 	NVIC_ENABLE_IRQ(IRQ_AUDIO2);
 	
 }
