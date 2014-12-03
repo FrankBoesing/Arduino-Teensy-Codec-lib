@@ -90,6 +90,7 @@
 #define HUFFTAB_SPEC_OFFSET             1
 
 /* do y <<= n, clipping to range [-2^30, 2^30 - 1] (i.e. output has one guard bit) */
+/*
 #define CLIP_2N_SHIFT(y, n) {                   \
         int sign = (y) >> 31;                   \
         if (sign != (y) >> (30 - (n)))  {       \
@@ -98,14 +99,14 @@
             (y) = (y) << (n);                   \
         }                                       \
     }
-
+*/
 /* clip to [-2^n, 2^n-1], valid range of n = [1, 30] */
-
+/*
 #define CLIP_2N(val, n) {                               \
         if ((val) >> 31 != (val) >> (n))                \
             (val) = ((val) >> 31) ^ ((1 << (n)) - 1);   \
     }
-
+*/
 	
 
 #define SF_DQ_OFFSET            15

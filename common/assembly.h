@@ -341,7 +341,7 @@ static __inline Word64 MADD64(Word64 sum64, int x, int y)
 static inline int MULSHIFT32(int x, int y)
 {
     int zlow;
-    asm volatile ("smull %0,%1,%2,%3" : "=&r" (zlow), "=r" (y) : "r" (x), "1" (y) : "cc");
+    asm ("smull %0,%1,%2,%3" : "=&r" (zlow), "=r" (y) : "r" (x), "1" (y) : "cc");
     return y;
 }
 /*
@@ -360,12 +360,44 @@ static inline short CLIPTOSHORT(int x)
 static inline short CLIPTOSHORT(int x) 
 {
 // not correct(?!) - but i can't hear any difference...
-// even better - for both mp3&aac. so i leave it here.
+// maybe better(?)- for both mp3&aac. so i leave it here.
 //FB:
-	short out;
-	asm volatile("ssat %0, #16, %1" : "=r" (out) : "r" (x));
-	return out;
+	//short out;
+	asm ("ssat %0, #16, %1" : "=r" (x) : "r" (x));
+	return x;
 }
+
+/* From coder.h, ORIGINAL:
+clip to [-2^n, 2^n-1], valid range of n = [1, 30]
+
+#define CLIP_2N(y, n) { \
+	int sign = (y) >> 31;  \
+	if (sign != (y) >> (n))  { \
+		(y) = sign ^ ((1 << (n)) - 1); \
+	} \
+}
+*/
+//FB:
+static inline int CLIP_2N(int y, int n)
+{
+	asm ("ssat %0, #30, %1" : "=r" (y) : "r" (y));
+	asm ("mov %0, %1, asr %2" : "=r" (y) : "r" (y) , "r" (n) );	
+	return y;
+}
+
+/* From coder.h, ORIGINAL:
+ do y <<= n, clipping to range [-2^30, 2^30 - 1] (i.e. output has one guard bit) 
+*/
+//TODO (FB) Is there a better way ?
+#define CLIP_2N_SHIFT(y, n) {                   \
+        int sign = (y) >> 31;                   \
+        if (sign != (y) >> (30 - (n)))  {       \
+            (y) = sign ^ (0x3fffffff);          \
+        } else {                                \
+            (y) = (y) << (n);                   \
+        }                                       \
+    }
+
 
 
 #define FASTABS(x) abs(x) //FB
@@ -374,17 +406,15 @@ static inline short CLIPTOSHORT(int x)
 //Reverse byte order (16 bit) //FB
 static inline unsigned int REV16( unsigned int value)
 {
-	unsigned int result;
-	asm volatile ("rev16 %0, %1" : "=r" (result) : "r" (value) );
-	return(result);
+	asm ("rev16 %0, %1" : "=r" (value) : "r" (value) );
+	return(value);
 }
 
 //Reverse byte order (32 bit) //FB
 static inline unsigned int REV32( unsigned int value)
 {
-	unsigned int result;
-	asm volatile ("rev %0, %1" : "=r" (result) : "r" (value) );
-	return(result);
+	asm ("rev %0, %1" : "=r" (value) : "r" (value) );
+	return(value);
 }
 
 
@@ -403,9 +433,7 @@ static inline Word64 MADD64(Word64 sum64, int x, int y)
 {
 	U64 u;
 	u.w64 = sum64;
-	
-	asm volatile ("smlal %0,%1,%2,%3" : "+&r" (u.r.lo32), "+&r" (u.r.hi32) : "r" (x), "r" (y) : "cc");
-	
+	asm ("smlal %0,%1,%2,%3" : "+&r" (u.r.lo32), "+&r" (u.r.hi32) : "r" (x), "r" (y) : "cc");
 	return u.w64;
 }
 

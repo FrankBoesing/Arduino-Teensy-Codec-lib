@@ -45,7 +45,7 @@
 
 #include "coder.h"
 //#include "assembly.h"
-
+erte
 #define RND_VAL		(1 << (FBITS_OUT_IMDCT-1))
 
 #ifndef AAC_ENABLE_SBR
@@ -73,7 +73,7 @@
  * TODO:        ARM5E version with saturating overlap/add (QADD)
  *              asm code with free pointer updates, better load scheduling
  **************************************************************************************/
-__attribute__ ((section (".data"))) static void DecWindowOverlap(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
+/*__attribute__ ((section (".data")))*/ static void DecWindowOverlap(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
 {
 	int in, w0, w1, f0, f1;
 	int *buf1, *over1;
@@ -160,7 +160,7 @@ __attribute__ ((section (".data"))) static void DecWindowOverlap(int *buf0, int 
  * TODO:        ARM5E version with saturating overlap/add (QADD)
  *              asm code with free pointer updates, better load scheduling
  **************************************************************************************/
- __attribute__ ((section (".data"))) static void DecWindowOverlapLongStart(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
+ /*__attribute__ ((section (".data")))*/ static void DecWindowOverlapLongStart(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
 {
 	int i,  in, w0, w1, f0, f1;
 	int *buf1, *over1;
@@ -247,7 +247,7 @@ __attribute__ ((section (".data"))) static void DecWindowOverlap(int *buf0, int 
  * TODO:        ARM5E version with saturating overlap/add (QADD)
  *              asm code with free pointer updates, better load scheduling
  **************************************************************************************/
- __attribute__ ((section (".data"))) static void DecWindowOverlapLongStop(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
+ /*__attribute__ ((section (".data")))*/ static void DecWindowOverlapLongStop(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
 {
 	int i, in, w0, w1, f0, f1;
 	int *buf1, *over1;
@@ -334,7 +334,7 @@ __attribute__ ((section (".data"))) static void DecWindowOverlap(int *buf0, int 
  * TODO:        ARM5E version with saturating overlap/add (QADD)
  *              asm code with free pointer updates, better load scheduling
  **************************************************************************************/
- __attribute__ ((section (".data"))) static void DecWindowOverlapShort(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
+ /*__attribute__ ((section (".data"))) */ static void DecWindowOverlapShort(int *buf0, int *over0, short *pcm0, int nChans, int winTypeCurr, int winTypePrev)
 {
 	int i, in, w0, w1, f0, f1;
 	int *buf1, *over1;

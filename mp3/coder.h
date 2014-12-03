@@ -67,12 +67,14 @@
 #endif
 
 /* clip to range [-2^n, 2^n - 1] */
+/*
 #define CLIP_2N(y, n) { \
 	int sign = (y) >> 31;  \
 	if (sign != (y) >> (n))  { \
 		(y) = sign ^ ((1 << (n)) - 1); \
 	} \
 }
+*/
 
 #define SIBYTES_MPEG1_MONO		17
 #define SIBYTES_MPEG1_STEREO	32
