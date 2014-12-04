@@ -39,15 +39,26 @@ I      .req  r12
     ;   sign = temp variable to use for sign
     ;   maxPos = 0x00007fff (takes 2 instr. to generate - calculating
     ;              once and using repeatedly saves if you do several CTOS in a row) */
-    .macro   C64TOS    _xl, _xh, _sign, _maxPos
+	/*
+    .macro   C64TOS    _xl, _xh, _sign, _maxPos	
     mov        \_xl, \_xl, lsr #(20+6)
     orr        \_xl, \_xl, \_xh, lsl #(12-6)
     mov        \_sign, \_xl, ASR #31
     cmp        \_sign, \_xl, ASR #15
     it ne
-    eorne        \_xl, \_sign, \_maxPos   
+    eorne        \_xl, \_sign, \_maxPos   	
     .endm 
-
+	*/
+	
+    /*; C64TOSCM4 - clip 64-bit accumulator to short  (FB)
+    ;   xl, xh = value (lo 32, hi 32)
+	*/
+	.macro   C64TOSM4    _xl, _xh
+	mov			\_xl, \_xl, lsr #(20+6)
+	orr			\_xl, \_xl, \_xh, lsl #(12-6)
+	ssat		\_xl, #16, \_xl
+	.endm
+	
   /*  ; MC0S - process 2 taps, 1 sample per channel (sample 0) */
   /*  ;   x = vb1 offset */
     .MACRO        MC0S    val_x
@@ -134,12 +145,16 @@ I      .req  r12
     MC0S    7
 
     ldr        PCM, [sp, #4]         /* ; load pcm pointer */
-    mov        MAXPOS, #0x7f00
+    /*
+	mov        MAXPOS, #0x7f00
     orr        MAXPOS, MAXPOS, #0xff
     
     C64TOS    SUM1LL, SUM1LH, SIGN, MAXPOS
     C64TOS    SUM1RL, SUM1RH, SIGN, MAXPOS
-
+	*/
+	C64TOSM4 SUM1LL, SUM1LH /*  FB */
+	C64TOSM4 SUM1RL, SUM1RH /*  FB */
+	
     strh    SUM1LL, [PCM, #(2*0)]
     strh    SUM1RL, [PCM, #(2*1)]
 
@@ -162,12 +177,16 @@ I      .req  r12
     MC1S    7
 
     ldr        PCM, [sp, #4]        /* load pcm pointer */
+	/*
     mov        MAXPOS, #0x7f00
     orr        MAXPOS, MAXPOS, #0xff
     
     C64TOS    SUM1LL, SUM1LH, SIGN, MAXPOS
     C64TOS    SUM1RL, SUM1RH, SIGN, MAXPOS
-
+	*/
+	C64TOSM4 SUM1LL, SUM1LH /*  FB */
+	C64TOSM4 SUM1RL, SUM1RH /*  FB */
+	
     strh    SUM1LL, [PCM, #(2*(2*16+0))]
     strh    SUM1RL, [PCM, #(2*(2*16+1))]
 
@@ -203,14 +222,21 @@ LoopPS:
     add        VB1, VB1, #(4*64)    /*; vb1 += 64*/
     
     ldr        PCM, [sp, #4]        /*; load pcm pointer*/
-    mov        MAXPOS, #0x7f00
+    /*
+	mov        MAXPOS, #0x7f00
     orr        MAXPOS, MAXPOS, #0xff
-    
+	
     C64TOS    SUM1LL, SUM1LH, SIGN, MAXPOS
     C64TOS    SUM1RL, SUM1RH, SIGN, MAXPOS
     C64TOS    SUM2LL, SUM2LH, SIGN, MAXPOS
     C64TOS    SUM2RL, SUM2RH, SIGN, MAXPOS
-    
+    */
+	
+	C64TOSM4 SUM1LL, SUM1LH /*  FB */	
+	C64TOSM4 SUM1RL, SUM1RH /*  FB */	
+	C64TOSM4 SUM2LL, SUM2LH /*  FB */	
+	C64TOSM4 SUM2RL, SUM2RH /*  FB */	
+	
     ldr        I, [sp, #0]            /*; load loop counter*/
     add        CF2, PCM, I, lsl #3    /*; CF2 = PCM + 4*i (short offset)*/
     strh    SUM2LL, [CF2], #2    /*; *(pcm + 2*2*i + 0)*/
@@ -303,10 +329,14 @@ LoopPS:
     MC0M    7
 
     ldr        PCM, [sp, #4]        /*; load pcm pointer*/
-    mov        MAXPOS, #0x7f00
+    /*
+	mov        MAXPOS, #0x7f00
     orr        MAXPOS, MAXPOS, #0xff
     
     C64TOS    SUM1LL, SUM1LH, SIGN, MAXPOS
+	*/
+	C64TOSM4 SUM1LL, SUM1LH /*  FB */	
+	
     strh    SUM1LL, [PCM, #(2*0)]
 
   /*  ; special case, output sample 16*/
@@ -326,10 +356,14 @@ LoopPS:
     MC1M    7
 
     ldr        PCM, [sp, #4]     /*   ; load pcm pointer*/
+	/*
     mov        MAXPOS, #0x7f00
     orr        MAXPOS, MAXPOS, #0xff
     
     C64TOS    SUM1LL, SUM1LH, SIGN, MAXPOS
+	*/
+	C64TOSM4 SUM1LL, SUM1LH /*  FB */	
+
 
     strh    SUM1LL, [PCM, #(2*16)]
 
@@ -360,12 +394,16 @@ LoopPM:
     add        VB1, VB1, #(4*64)    /*; vb1 += 64*/
     
     ldr        PCM, [sp, #4]        /*; load pcm pointer*/
+	/*
     mov        MAXPOS, #0x7f00
     orr        MAXPOS, MAXPOS, #0xff
     
     C64TOS    SUM1LL, SUM1LH, SIGN, MAXPOS
     C64TOS    SUM2LL, SUM2LH, SIGN, MAXPOS
-    
+	*/
+    C64TOSM4 SUM1LL, SUM1LH /*  FB */	
+	C64TOSM4 SUM2LL, SUM2LH /*  FB */	
+
     ldr        I, [sp, #0]            /*; load loop counter*/
     add        CF2, PCM, I, lsl #2    /*; CF2 = PCM + 2*i (short offset)*/
     strh    SUM2LL, [CF2], #2    ; /**(pcm + 2*i + 0)*/
