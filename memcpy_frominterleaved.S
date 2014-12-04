@@ -53,56 +53,40 @@
 	@ r1: dst2
 	@ r2: src
 
-	push	{r0, r4-r11}
-	mov r11, #4 - 1
+	push	{r0, r3-r12}
+	mov r12, #4 - 1
 	.align 2	
 .loop:
+
+	.irp offset, 1,2,3,4	
 	
-	.irp offset, 1,2,3,4
+	//load 8 words (32 byte)  at once into r3-r10 increase adress of r2
+	ldmia r2!,{r3, r4, r5, r6, r7, r8, r9, r10}
+
+	pkhbt r11, r3, r4, lsl #0
+	str r11,[r0],#4
+	pkhbt r11, r5, r6, lsl #0
+	str r11,[r0],#4
+	pkhbt r11, r7, r8, lsl #0
+	str r11,[r0],#4
+	pkhbt r11, r9, r10, lsl #0	
+	str r11,[r0],#4
 	
-	//load 8 words (32 byte)  at once into r3-r10, increase adress of r2
-	ldmia r2!,{r3,r4,r5,r6, r7,r8,r9,r10}
-	
-	strh r3,[r1], #2
-	mov r3, r3, lsr #16	
-	strh r3,[r0], #2
-	
-	strh r4,[r1], #2
-	mov r3, r4, lsr #16		
-	strh r3,[r0], #2
-
-	strh r5,[r1], #2
-	mov r3, r5, lsr #16		
-	strh r3,[r0], #2
-
-	strh r6,[r1], #2
-	mov r3, r6, lsr #16		
-	strh r3,[r0], #2
-
-	strh r7,[r1], #2
-	mov r3, r7, lsr #16		
-	strh r3,[r0], #2
-
-	strh r8,[r1], #2
-	mov r3, r8, lsr #16		
-	strh r3,[r0], #2
-
-	strh r9,[r1], #2
-	mov r3, r9, lsr #16		
-	strh r3,[r0], #2
-
-	strh r10,[r1], #2
-	mov r3, r10, lsr #16		
-	strh r3,[r0], #2
+	pkhbt r11, r4, r3, lsl #0
+	str r11,[r1],#4
+	pkhbt r11, r6, r5, lsl #0
+	str r11,[r1],#4
+	pkhbt r11, r8, r7, lsl #0
+	str r11,[r1],#4
+	pkhbt r11, r10, r9, lsl #0
+	str r11,[r1],#4
 	
 	.endr
 	
-	subs r11, #1
+	subs r12, #1
 	bhs .loop
 	
-	pop	{r0, r4-r11}
+	pop	{r0, r3-r12}
 
 	BX lr
 .END
-
-
