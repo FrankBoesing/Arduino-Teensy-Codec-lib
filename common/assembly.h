@@ -369,20 +369,13 @@ static inline short CLIPTOSHORT(int x)
 
 /* From coder.h, ORIGINAL:
 clip to [-2^n, 2^n-1], valid range of n = [1, 30]
-
+//TODO (FB) Is there a better way ?
+*/
 #define CLIP_2N(y, n) { \
 	int sign = (y) >> 31;  \
 	if (sign != (y) >> (n))  { \
 		(y) = sign ^ ((1 << (n)) - 1); \
 	} \
-}
-*/
-//FB:
-static inline int CLIP_2N(int y, int n)
-{
-	asm ("ssat %0, #30, %1" : "=r" (y) : "r" (y));
-	asm ("mov %0, %1, asr %2" : "=r" (y) : "r" (y) , "r" (n) );	
-	return y;
 }
 
 /* From coder.h, ORIGINAL:
