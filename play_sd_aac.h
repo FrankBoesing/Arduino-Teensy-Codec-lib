@@ -45,7 +45,7 @@
 #ifndef play_sd_aac_h_
 #define play_sd_aac_h_
 
-#include "mp3aac.h"
+#include "codecs.h"
 #include "AudioStream.h"
 #include "spi_interrupt.h"
 #include "aac/aacdec.h"

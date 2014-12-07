@@ -39,14 +39,29 @@
  /* The Helix-Library is modified for Teensy 3.1 */
 
 
+
 #include "play_sd_mp3.h"
 
 
 #define MP3_SD_BUF_SIZE	2048 								//Enough space for a complete stereo frame
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
 
-//There is currently no define for 44100 in the Audiolib..
-#define AUDIOMP3_SAMPLE_RATE (((int)(AUDIO_SAMPLE_RATE / 100)) * 100)
+
+static File				file;
+
+static uint8_t			*sd_buf;
+static uint8_t			*sd_p;
+static int				sd_left;
+static uint32_t 		size_id3;
+
+static int16_t			*buf[2];
+static uint32_t			decoded_length[2];
+static int32_t			decoding_block;
+static int32_t			play_pos;
+static uint32_t			samples_played;
+
+static uint32_t			decode_cycles_max;
+static uint32_t			decode_cycles_max_sd;
 
 static  int				playing;
 static  HMP3Decoder		hMP3Decoder;
@@ -170,7 +185,7 @@ bool AudioPlaySdMp3::play(const char *filename){
 	sd_p = sd_buf;
 
 	decode();
-	if((mp3FrameInfo.samprate != AUDIOMP3_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
+	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
 		//Serial.println("incompatible MP3 file.");
 		stop();
 		return false;

@@ -36,21 +36,24 @@
 
  */
 
- /* The Helix-Library is modified for Teensy 3.1 */
-#ifndef TEENSYDUINO
+#if !defined(__MK20DX256__)
 #error	This platform is not supported.
 #endif
 
-#ifndef mp3aac_h_
-#define mp3aac_h_
+#ifndef codecs_h_
+#define codecs_h_
 
 #include "SD.h"
 
 #define IRQ_AUDIO		IRQ_SOFTWARE	// see AudioStream.cpp
 #define IRQ_AUDIO2		56				// use a "reserved" (free) interrupt vector
 
+#define AUDIOCODECS_SAMPLE_RATE			(((int)(AUDIO_SAMPLE_RATE / 100)) * 100) //44100
+
 #define NVIC_STIR		(*(volatile uint32_t *)0xE000EF00) //Software Trigger Interrupt Register
 #define NVIC_TRIGGER_INTERRUPT(x)    NVIC_STIR=(x);
+
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,22 +63,6 @@ void memcpy_frominterleaved(short *dst1, short *dst2, short *src);
 }
 #endif
 
-
-extern File			file;
-
-extern uint8_t 		*sd_buf;
-extern uint8_t		*sd_p;
-extern int			sd_left;
-extern uint32_t 	size_id3;
-
-extern int16_t 		*buf[2];
-extern uint32_t		decoded_length[2];
-extern int32_t		decoding_block;
-extern int32_t 		play_pos;
-extern uint32_t	    samples_played;
-
-extern uint32_t		decode_cycles_max;
-extern uint32_t		decode_cycles_max_sd;
 
 void init_interrupt( void (*decoder)(void) );
 

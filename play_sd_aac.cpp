@@ -45,12 +45,30 @@
 #define AAC_SD_BUF_SIZE	3072 								//Enough space for a complete stereo frame
 #define AAC_BUF_SIZE	(AAC_MAX_NCHANS * AAC_MAX_NSAMPS)	//AAC output buffer
 
-//There is currently no define for 44100 in the Audiolib..
-#define AUDIOAAC_SAMPLE_RATE (((int)(AUDIO_SAMPLE_RATE / 100)) * 100)
 
-static int					playing;
-static bool			isRAW;				//Raw file means, it is AAC(streamable)
-static uint32_t 	firstChunk, lastChunk;//for MP4/M4A
+
+static File				file;
+
+static uint8_t			*sd_buf;
+static uint8_t			*sd_p;
+static int				sd_left;
+static uint32_t 		size_id3;
+
+static int16_t			*buf[2];
+static uint32_t			decoded_length[2];
+static int32_t			decoding_block;
+static int32_t			play_pos;
+static uint32_t			samples_played;
+
+static bool				isRAW;					//true AAC(streamable)
+static uint32_t 		firstChunk, lastChunk;	//for MP4/M4A
+
+static uint32_t			decode_cycles_max;
+static uint32_t			decode_cycles_max_sd;
+
+static  int				playing;
+
+
 static HAACDecoder	hAACDecoder;
 static AACFrameInfo	aacFrameInfo;
 
@@ -281,7 +299,7 @@ bool AudioPlaySdAac::play(const char *filename){
 	sd_p = sd_buf;
 
 	decode();
-	if((aacFrameInfo.sampRateOut != AUDIOAAC_SAMPLE_RATE ) || (aacFrameInfo.nChans > 2)) {
+	if((aacFrameInfo.sampRateOut != AUDIOCODECS_SAMPLE_RATE ) || (aacFrameInfo.nChans > 2)) {
 		Serial.println("incompatible AAC file.");
 		stop();
 		return false;
