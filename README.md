@@ -1,4 +1,4 @@
-Arduino-Teensy-MP3-lib
+Arduino-Teensy-Codec-lib
 ======================
 
 Audiolibrary plugin, plays up to 320 kbps *.MP3, *.MP4, *.M4A, or *.AAC in software without external hardware - 
