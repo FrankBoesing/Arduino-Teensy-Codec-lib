@@ -359,10 +359,6 @@ static inline short CLIPTOSHORT(int x)
 */	
 static inline short CLIPTOSHORT(int x) 
 {
-// not correct(?!) - but i can't hear any difference...
-// maybe better(?)- for both mp3&aac. so i leave it here.
-//FB:
-	//short out;
 	asm ("ssat %0, #16, %1" : "=r" (x) : "r" (x));
 	return x;
 }

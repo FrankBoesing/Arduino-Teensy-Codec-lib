@@ -9,9 +9,10 @@ Optimized for ARM Thumb2.
 planned:
  - *.flac
  - streaming audio
+
+ HINT: -O2 gives much better performance
  
  TODO:
- - optimize some functions
  - detect APE-header
  - parse ID3 / APE / MP4 for extended information
  - ogg vorbis (?)
