@@ -38,10 +38,6 @@
 
  /* The Helix-Library is modified for Teensy 3.1 */
 
-#ifndef TEENSYDUINO
-#error	This platform is not supported.
-#endif
-
 #ifndef play_sd_mp3_h_
 #define play_sd_mp3_h_
 
@@ -50,22 +46,16 @@
 #include "spi_interrupt.h"
 #include "mp3/mp3dec.h"
 
-/* todo
-#define ERR_HMP3_NONE   	  	   0
-#define ERR_HMP3_FILE_NOT_FOUND    1
-#define ERR_HMP3_OUT_OF_MEMORY     2
-#define ERR_HMP3_FORMAT			   3	//File is not 44.1 KHz, 16Bit mono or stereo
-*/
-
-
-class AudioPlaySdMp3 : public AudioStream
+//class AudioPlaySdMp3 : public AudioStream
+class AudioPlaySdMp3 : public AudioCodec 
 {
 public:
-	AudioPlaySdMp3(void) : AudioStream(0, NULL) { stop(); }
-	bool play(const char *filename) ;
+	//AudioPlaySdMp3(void) : AudioStream(0, NULL) {}
+	int play(const char *filename);
 	bool pause(bool paused);
 	void stop(void);
-	bool isPlaying(void);
+	bool isPlaying(void);	
+	
 	uint32_t positionMillis(void);
 	uint32_t lengthMillis(void);
 	uint32_t bitrate(void);
@@ -74,10 +64,11 @@ public:
 	float processorUsageMaxDecoder(void);
 	float processorUsageMaxSD(void);
 
-	virtual void update(void)  __attribute__ ((optimize(2)));
-
 private:
-
+	uintptr_t	play_pos; //upd
+	uint32_t	samples_played;//upd
+	//int			lastError;
+	void update(void);
 };
 
 

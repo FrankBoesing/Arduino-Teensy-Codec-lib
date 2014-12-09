@@ -36,24 +36,33 @@
 
  */
 
-#if !defined(__MK20DX256__)
+#ifndef __MK20DX256__
 #error	This platform is not supported.
 #endif
 
 #ifndef codecs_h_
 #define codecs_h_
 
+
+
+#include "AudioStream.h"
 #include "SD.h"
 
-#define IRQ_AUDIO		IRQ_SOFTWARE	// see AudioStream.cpp
-#define IRQ_AUDIO2		56				// use a "reserved" (free) interrupt vector
+#define ERR_CODEC_NONE				0
+#define ERR_CODEC_FILE_NOT_FOUND    1
+#define ERR_CODEC_OUT_OF_MEMORY     2
+#define ERR_CODEC_FORMAT			3	//File is not 44.1 KHz, 16Bit mono or stereo
+
+
+#define IRQ_AUDIO			IRQ_SOFTWARE	// see AudioStream.cpp
+#define IRQ_AUDIOCODEC		56				// use a "reserved" (free) interrupt vector
+#define IRQ_AUDIOCODEC_PRIO	0XFF			// use a "reserved" (free) interrupt vector
 
 #define AUDIOCODECS_SAMPLE_RATE			(((int)(AUDIO_SAMPLE_RATE / 100)) * 100) //44100
 
-#define NVIC_STIR		(*(volatile uint32_t *)0xE000EF00) //Software Trigger Interrupt Register
-#define NVIC_TRIGGER_INTERRUPT(x)    NVIC_STIR=(x);
-
-
+#define NVIC_STIR			(*(volatile uint32_t *)0xE000EF00) //Software Trigger Interrupt Register
+#define NVIC_TRIGGER_INTERRUPT(x)    NVIC_STIR=(x)
+#define NVIC_IS_ACTIVE(n)	(*((volatile uint32_t *)0xE000E300 + ((n) >> 5)) & (1 << ((n) & 31)))
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,10 +72,21 @@ void memcpy_frominterleaved(short *dst1, short *dst2, short *src);
 }
 #endif
 
+extern int lastError;
 
-void init_interrupt( void (*decoder)(void) );
+void init_interrupt();
+size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
+uint16_t fread16(File file, size_t position);
+uint32_t fread32(File file, size_t position);
+size_t skipID3(uint8_t *sd_buf);
 
-unsigned int fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, uint32_t dataLeft, uint32_t sd_bufsize);
-unsigned int skipID3(uint8_t *sd_buf);
+class AudioCodec : public AudioStream
+{
+public:
+	AudioCodec(void) : AudioStream(0, NULL) {};
+	int	getLastError(void);
+protected:
+
+};
 
 #endif

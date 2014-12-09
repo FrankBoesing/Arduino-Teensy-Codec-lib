@@ -46,31 +46,35 @@
 #define MP3_SD_BUF_SIZE	2048 								//Enough space for a complete stereo frame
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
 
+#define DECODE_NUM_STATES 2									//How many steps in decode() ?
+
+
 
 static File				file;
 
-static uint8_t			*sd_buf;
-static uint8_t			*sd_p;
-static int				sd_left;
-static uint32_t 		size_id3;
+static uint8_t			*sd_buf; //decode
+static uint8_t			*sd_p; 	 //decode
+static int				sd_left; //decode
+ 
+static short			*buf[2]; //output buffers
+static size_t			decoded_length[2];
+static size_t			decoding_block;
+static unsigned int		decoding_state; //state 0: read sd, state 1: decode
 
-static int16_t			*buf[2];
-static uint32_t			decoded_length[2];
-static int32_t			decoding_block;
-static int32_t			play_pos;
-static uint32_t			samples_played;
+static size_t 			size_id3;
+//static uint32_t 		firstChunk, lastChunk;	//for MP4/M4A //TODO: use for ID3 too
 
 static uint32_t			decode_cycles_max;
 static uint32_t			decode_cycles_max_sd;
 
-static  int				playing;
-static  HMP3Decoder		hMP3Decoder;
-static	MP3FrameInfo	mp3FrameInfo;
+static unsigned int		playing;
+
+static HMP3Decoder		hMP3Decoder;
+static MP3FrameInfo		mp3FrameInfo;
 
 
-static void decode(void);
 static void mp3stop(void);
-
+static void decode(void);
 
 void AudioPlaySdMp3::stop(void)
 {
@@ -135,19 +139,32 @@ float AudioPlaySdMp3::processorUsageMaxSD(void){
 	return (decode_cycles_max_sd / (0.026*F_CPU)) * 100;
 };
 
-bool AudioPlaySdMp3::play(const char *filename){
+
+int AudioPlaySdMp3::play(const char *filename){
 	stop();
 
+	lastError = ERR_CODEC_NONE;
+	
 	sd_buf = (uint8_t *) malloc(MP3_SD_BUF_SIZE);
-	buf[0] = (int16_t *) malloc(MP3_BUF_SIZE * sizeof(int16_t));
-	buf[1] = (int16_t *) malloc(MP3_BUF_SIZE * sizeof(int16_t));
+	buf[0] = (short *) malloc(MP3_BUF_SIZE * sizeof(int16_t));
+	buf[1] = (short *) malloc(MP3_BUF_SIZE * sizeof(int16_t));
 
 	hMP3Decoder = MP3InitDecoder();
-	file = SD.open(filename);
-
-	if (!sd_buf || !file || !hMP3Decoder || !buf[0] || !buf[1]) {
+	
+	if (!sd_buf || !buf[0] || !buf[1] || !hMP3Decoder)
+	{
+		lastError = ERR_CODEC_OUT_OF_MEMORY;
 		stop();
-		return false;
+		return lastError;
+	}
+	
+	file = SD.open(filename);
+	
+	if (!file) 
+	{
+		lastError = ERR_CODEC_FILE_NOT_FOUND;
+		stop();
+		return lastError;
 	}
 
 	//Read-ahead 10 Bytes to detect ID3	
@@ -166,35 +183,43 @@ bool AudioPlaySdMp3::play(const char *filename){
 	sd_left = fillReadBuffer(file, sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
 
 	if (!sd_left) {
+		lastError = ERR_CODEC_FILE_NOT_FOUND;
 		stop();
-		return false;
+		return lastError;
 	}
 
-	init_interrupt( decode );
-
+	init_interrupt();
+	
+	_VectorsRam[IRQ_AUDIOCODEC + 16] = &decode;
+	NVIC_SET_PRIORITY(IRQ_AUDIOCODEC, IRQ_AUDIOCODEC_PRIO);
+	NVIC_ENABLE_IRQ(IRQ_AUDIOCODEC);
+	
 	decoded_length[0] = 0;
 	decoded_length[1] = 0;
+	decoding_block = 0;
+	decoding_state = 0;
+	
 	play_pos = 0;
 	samples_played = 0;
 
 	decode_cycles_max_sd = 0;
 	decode_cycles_max = 0;
 
-	decoding_block = 0;
-	
 	sd_p = sd_buf;
 
-	decode();
+	for (size_t i=0; i< DECODE_NUM_STATES; i++) decode(); 
+	
 	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
 		//Serial.println("incompatible MP3 file.");
+		lastError = ERR_CODEC_FORMAT;
 		stop();
-		return false;
+		return lastError;
 	}
 	decoding_block = 1;	
 	
 	playing = 1;
 	AudioStartUsingSPI();
-    return true;
+    return lastError;
 }
 
 //runs in ISR
@@ -206,8 +231,14 @@ void AudioPlaySdMp3::update(void)
 	//paused or stopped ?
 	if (0==playing or 2==playing) return;
 
-	//chain decoder-interrupt
-	NVIC_TRIGGER_INTERRUPT(IRQ_AUDIO2);
+	//chain decoder-interrupt.
+	//to give the user-sketch some cpu-time, only chain
+	//if the swi is not active currently.
+	//In addition, check before if there waits work for it.
+	int db = decoding_block;
+	if (!NVIC_IS_ACTIVE(IRQ_AUDIOCODEC)) 
+		if (decoded_length[db]==0)
+			NVIC_TRIGGER_INTERRUPT(IRQ_AUDIOCODEC);
 
 	//determine the block we're playing from
 	int playing_block = 1 - decoding_block;
@@ -217,6 +248,8 @@ void AudioPlaySdMp3::update(void)
 	block_left = allocate();
 	if (block_left == NULL) return;
 
+	uintptr_t pl = play_pos;
+	
 	if (mp3FrameInfo.nChans == 2) {
 		// if we're playing stereo, allocate another
 		// block for the right channel output
@@ -226,9 +259,9 @@ void AudioPlaySdMp3::update(void)
 			return;
 		}
 		
-		memcpy_frominterleaved(block_left->data, block_right->data, buf[playing_block]+play_pos);
+		memcpy_frominterleaved(block_left->data, block_right->data, buf[playing_block] + pl);
 		
-		play_pos += AUDIO_BLOCK_SAMPLES * 2;
+		pl += AUDIO_BLOCK_SAMPLES * 2;
 		transmit(block_left, 0);
 		transmit(block_right, 1);
 		release(block_right);
@@ -238,9 +271,9 @@ void AudioPlaySdMp3::update(void)
 	{
 		// if we're playing mono, no right-side block
 		// let's do a (hopefully good optimized) simple memcpy
-		memcpy(&block_left->data[0], &buf[playing_block][play_pos], AUDIO_BLOCK_SAMPLES * sizeof(short));
+		memcpy(block_left->data, buf[playing_block] + pl, AUDIO_BLOCK_SAMPLES * sizeof(short));
 		
-		play_pos += AUDIO_BLOCK_SAMPLES;
+		pl += AUDIO_BLOCK_SAMPLES;
 		transmit(block_left, 0);
 		transmit(block_left, 1);
 		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES;
@@ -250,12 +283,14 @@ void AudioPlaySdMp3::update(void)
 	samples_played += AUDIO_BLOCK_SAMPLES;
 
 	release(block_left);
-
+	
+	//Switch to the next block if we have no data to play anymore:
 	if (decoded_length[playing_block] == 0)
 	{
 		decoding_block = playing_block;
 		play_pos = 0;
-	}
+	} else 
+	play_pos = pl;
 
 }
 
@@ -263,66 +298,74 @@ void AudioPlaySdMp3::update(void)
 void decode(void)
 {
 
-	int eof = false;
-	int offset;
-	int decode_res;
-	uint32_t cycles, cycles_sd;
-	
 	if (decoded_length[decoding_block]) return; //this block is playing, do NOT fill it
 		
-	cycles_sd = ARM_DWT_CYCCNT;
-
-	//if (sd_left < 1024) { //todo: optimize 1024..
+	uint32_t cycles = ARM_DWT_CYCCNT;
+	int eof = false;
+	
+	switch (decoding_state) {
+	
+	case 0: 
+		{
+	
+		//if (sd_left < 1024) { //todo: optimize 1024..
 			sd_left = fillReadBuffer( file, sd_buf, sd_p, sd_left, MP3_SD_BUF_SIZE);
 			if (!sd_left) { eof = true; goto mp3end; }
 			sd_p = sd_buf;
-	//}
-
+		//}
+			uint32_t cycles_sd = (ARM_DWT_CYCCNT - cycles);
+			if (cycles_sd > decode_cycles_max_sd ) decode_cycles_max_sd = cycles_sd;
+			break;
+		}
 	
-	cycles = ARM_DWT_CYCCNT;
-	cycles_sd = (cycles - cycles_sd);
-	if (cycles_sd > decode_cycles_max_sd ) decode_cycles_max_sd = cycles_sd;
-	
-	
-	// find start of next MP3 frame - assume EOF if no sync found
-	offset = MP3FindSyncWord(sd_p, sd_left);
+	case 1:
+		{		
+			// find start of next MP3 frame - assume EOF if no sync found
+			int offset = MP3FindSyncWord(sd_p, sd_left);
 
-	if (offset < 0) {
-			//Serial.println("No sync"); //no error at end of file
-			eof = true;
-			goto mp3end;
-	}
+			if (offset < 0) {
+				//Serial.println("No sync"); //no error at end of file
+				eof = true;
+				goto mp3end;
+			}
 
-	sd_p += offset;
-	sd_left -= offset;
+			sd_p += offset;
+			sd_left -= offset;
 
-	decode_res = MP3Decode(hMP3Decoder, &sd_p, &sd_left,(short*)&buf[decoding_block][0], 0);
+			int decode_res = MP3Decode(hMP3Decoder, &sd_p, (int*)&sd_left,buf[decoding_block], 0);
 
-	switch(decode_res)
-		{
-			case ERR_MP3_NONE:
+			switch(decode_res)
+			{
+				case ERR_MP3_NONE:
 				{
 					MP3GetLastFrameInfo(hMP3Decoder, &mp3FrameInfo);
 					decoded_length[decoding_block] = mp3FrameInfo.outputSamps;					
 					break;
 				}
 
-			case ERR_MP3_MAINDATA_UNDERFLOW:
+				case ERR_MP3_MAINDATA_UNDERFLOW:
 				{
 					break;
 				}
 
-			default :
+				default :
 				{
+					lastError = decode_res;
 					eof = true;
 					break;
 				}
+			}
+
+			cycles = (ARM_DWT_CYCCNT - cycles);
+			if (cycles > decode_cycles_max ) decode_cycles_max = cycles;
+			break;
 		}
-
-	cycles = (ARM_DWT_CYCCNT - cycles);
-	if (cycles > decode_cycles_max ) decode_cycles_max = cycles;
-
+	}//switch
+	
 mp3end:
+	
+	decoding_state++;
+	if (decoding_state >= DECODE_NUM_STATES) decoding_state = 0;
 	
 	if (eof) {
 		mp3stop();

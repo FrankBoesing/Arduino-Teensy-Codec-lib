@@ -38,10 +38,14 @@
 
 
 #include "codecs.h"
+
+#include "common/assembly.h"
 #include "SD.h"
 
+int lastError = ERR_CODEC_NONE;
+
 //upgrade original audiointerrupt if needed (hackish...)
-void init_interrupt( void (*decoder)(void) )
+void init_interrupt()
 {
 
 	int audioIntPrio = NVIC_GET_PRIORITY(IRQ_AUDIO);
@@ -50,26 +54,21 @@ void init_interrupt( void (*decoder)(void) )
 		NVIC_SET_PRIORITY(IRQ_AUDIO, audioIntPrio);
 	}
 
-	_VectorsRam[IRQ_AUDIO2 + 16] = decoder;
-
-	NVIC_SET_PRIORITY(IRQ_AUDIO2, audioIntPrio + 0x10);
-	NVIC_ENABLE_IRQ(IRQ_AUDIO2);
-	
 }
 	
 // SD-buffer
-unsigned int fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, uint32_t dataLeft, uint32_t sd_bufsize)
+size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
 {
 	memmove(sd_buf, data, dataLeft);
 
-	unsigned int spaceLeft = sd_bufsize - dataLeft;
-	unsigned int read = dataLeft;
-	unsigned int n;
+	size_t spaceLeft = sd_bufsize - dataLeft;
+	size_t read = dataLeft;
+	size_t n;
 
 	//Read 512 - byte blocks (faster)
 	if (spaceLeft>0)
 	{	
-		unsigned int num;
+		size_t num;
 		do {
 			num = min(512, spaceLeft);
 			n = file.read(sd_buf + dataLeft, num);
@@ -89,9 +88,31 @@ unsigned int fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, uint32_t 
 	return read;
 }
 
+//read big endian 16-Bit from fileposition(position)
+uint16_t fread16(File file, size_t position)
+{
+	uint16_t tmp16;
+
+	file.seek(position);
+	file.read((uint8_t *) &tmp16, sizeof(tmp16));
+	return REV16(tmp16);
+
+}
+
+//read big endian 32-Bit from fileposition(position)
+uint32_t fread32(File file, size_t position)
+{
+	uint32_t tmp32;
+
+	file.seek(position);
+	file.read((uint8_t *) &tmp32, sizeof(tmp32));
+	return REV32(tmp32);
+
+}
+
 //Skip ID3-Tags at the beginning of the file.
 //http://id3.org/id3v2.4.0-structure
-unsigned int skipID3(uint8_t *sd_buf)
+size_t skipID3(uint8_t *sd_buf)
 {
 	if (sd_buf[0]=='I' && sd_buf[1]=='D' && sd_buf[2]=='3' &&
 		sd_buf[3]<0xff && sd_buf[4]<0xff &&
@@ -108,3 +129,9 @@ unsigned int skipID3(uint8_t *sd_buf)
 	}
 	else return 0;
 }
+
+int	AudioCodec::getLastError(void)
+{
+	return lastError;
+}
+
