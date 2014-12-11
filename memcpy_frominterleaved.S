@@ -53,40 +53,37 @@
 	@ r1: dst2
 	@ r2: src
 
-	push	{r0, r3-r12}
-	mov r12, #4 - 1
-	.align 2	
+	push	{r3-r12,r14}
+	add r14, r2, #512
+	.align 4	
 .loop:
 
-	.irp offset, 1,2,3,4	
+	.irp offset, 1,2	
 	
 	//load 8 words (32 byte)  at once into r3-r10 increase adress of r2
-	ldmia r2!,{r3, r4, r5, r6, r7, r8, r9, r10}
+	ldmia r2!,{r5, r6, r7, r8, r9, r10, r11, r12}
 
-	pkhbt r11, r3, r4, lsl #0
-	str r11,[r0],#4
-	pkhbt r11, r5, r6, lsl #0
-	str r11,[r0],#4
-	pkhbt r11, r7, r8, lsl #0
-	str r11,[r0],#4
-	pkhbt r11, r9, r10, lsl #0	
-	str r11,[r0],#4
+	pkhbt r3, r5, r6
+	pkhbt r4, r6, r5
 	
-	pkhbt r11, r4, r3, lsl #0
-	str r11,[r1],#4
-	pkhbt r11, r6, r5, lsl #0
-	str r11,[r1],#4
-	pkhbt r11, r8, r7, lsl #0
-	str r11,[r1],#4
-	pkhbt r11, r10, r9, lsl #0
-	str r11,[r1],#4
+	pkhbt r5, r7, r8
+	pkhbt r6, r8, r7
+
+	pkhbt r7, r9, r10
+	pkhbt r8, r10, r9
+
+	pkhbt r9, r11, r12
+	pkhbt r10, r12, r11
+
+	stmia r0!,{r3,r5,r7,r9}
+	stmia r1!,{r4,r6,r8,r10}	
 	
 	.endr
 	
-	subs r12, #1
-	bhs .loop
+	cmp r14, r2
+	bne .loop
 	
-	pop	{r0, r3-r12}
+	pop	{r3-r12,r14}
 
 	BX lr
 .END
