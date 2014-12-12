@@ -46,14 +46,10 @@ int lastError = ERR_CODEC_NONE;
 
 //upgrade original audiointerrupt if needed (hackish...)
 void init_interrupt()
-{
-
-	int audioIntPrio = NVIC_GET_PRIORITY(IRQ_AUDIO);
-	if (audioIntPrio == 240) {
-		audioIntPrio = 224;
-		NVIC_SET_PRIORITY(IRQ_AUDIO, audioIntPrio);
+{	
+	if (NVIC_GET_PRIORITY(IRQ_AUDIO) == 240) {
+		NVIC_SET_PRIORITY(IRQ_AUDIO, 224);
 	}
-
 }
 	
 // SD-buffer
@@ -65,24 +61,19 @@ size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft
 	size_t read = dataLeft;
 	size_t n;
 
-	//Read 512 - byte blocks (faster)
 	if (spaceLeft>0)
 	{	
-		size_t num;
-		do {
-			num = min(512, spaceLeft);
-			n = file.read(sd_buf + dataLeft, num);
-			dataLeft += n;
-			spaceLeft -= n;
-			read +=n;
-	
-		} while (spaceLeft >= 512 && n == 512 );
-
-		if( n<num)
-		{ //Rest mit 0 füllen
-			memset(sd_buf + dataLeft, sd_bufsize - dataLeft, 0);
+		
+		n = file.read(sd_buf + dataLeft, spaceLeft);
+		dataLeft += n;		
+		read +=n;
+		
+		if(n < spaceLeft)
+		{ //Rest mit 0 füllen (EOF)
+			memset(sd_buf + dataLeft, 0, sd_bufsize - dataLeft);
 		}
-
+		
+		spaceLeft -= n;
 	}
 
 	return read;
