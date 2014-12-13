@@ -45,7 +45,7 @@
 
 #include "coder.h"
 //#include "assembly.h"
-erte
+
 #define RND_VAL		(1 << (FBITS_OUT_IMDCT-1))
 
 #ifndef AAC_ENABLE_SBR
