@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino interface
+	Arduino Audiocodecs
 
 	Copyright (c) 2014 Frank Bösing
 
@@ -75,7 +75,7 @@ private:
 	uint32_t	duration;	
 	uint32_t	samples_played;	
 	bool		setupMp4(void);
-	void update(void);
+	void update(void) OPTIMIZE;
 };
 
 

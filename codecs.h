@@ -43,8 +43,6 @@
 #ifndef codecs_h_
 #define codecs_h_
 
-
-
 #include "AudioStream.h"
 #include "SD.h"
 
@@ -72,10 +70,16 @@ void memcpy_frominterleaved(short *dst1, short *dst2, short *src);
 }
 #endif
 
+
+#define OPTIMIZE __attribute__ ((optimize("2")))
+#define OPTIMIZE3 __attribute__ ((optimize("Ofoo")))
+
+//#define OPTIMIZE1
+
 extern int lastError;
 
 void init_interrupt();
-size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
+size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize) OPTIMIZE;
 uint16_t fread16(File file, size_t position);
 uint32_t fread32(File file, size_t position);
 size_t skipID3(uint8_t *sd_buf);

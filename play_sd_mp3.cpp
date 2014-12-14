@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino interface
+	Arduino Audiocodecs
 
 	Copyright (c) 2014 Frank Bösing
 
@@ -74,7 +74,7 @@ static MP3FrameInfo		mp3FrameInfo;
 
 
 static void mp3stop(void);
-static void decode(void);
+OPTIMIZE static void decode(void);
 
 void AudioPlaySdMp3::stop(void)
 {

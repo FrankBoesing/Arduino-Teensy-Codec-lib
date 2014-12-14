@@ -63,8 +63,9 @@ I      .req  r12
   /*  ;   x = vb1 offset */
     .MACRO        MC0S    val_x
 
-    ldr        CF1, [COEF], #4
-    ldr        CF2, [COEF], #4
+    //ldr        CF1, [COEF], #4
+    //ldr        CF2, [COEF], #4
+	ldmia 	   COEF!,{CF1, CF2} //FB
     ldr        VLO, [VB1, #(4*(\val_x))]
     ldr        VHI, [VB1, #(4*(23 - \val_x))]
 
@@ -96,8 +97,9 @@ I      .req  r12
     .MACRO         MC2S    val_x
 
     /* ; load data as far as possible in advance of using it */
-    ldr        CF1, [COEF], #4
-    ldr        CF2, [COEF], #4
+    //ldr        CF1, [COEF], #4
+    //ldr        CF2, [COEF], #4
+	ldmia 	   COEF!,{CF1, CF2} //FB
     ldr        VLO, [VB1, #(4*(\val_x))]
     ldr        VHI, [VB1, #(4*(23 - \val_x))]
 
@@ -260,8 +262,9 @@ LoopPS:
     /*;   x = vb1 offset*/
     .MACRO MC0M    val_x
 
-    ldr        CF1, [COEF], #4
-    ldr        CF2, [COEF], #4
+    //ldr        CF1, [COEF], #4
+    //ldr        CF2, [COEF], #4
+	ldmia 	   COEF!,{CF1, CF2} //FB
     ldr        VLO, [VB1, #(4*(\val_x))]
     ldr        VHI, [VB1, #(4*(23 - \val_x))]
 
@@ -288,8 +291,9 @@ LoopPS:
     .MACRO  MC2M    val_x
 
   /*  ; load data as far as possible in advance of using it*/
-    ldr        CF1, [COEF], #4
-    ldr        CF2, [COEF], #4
+    //ldr        CF1, [COEF], #4
+    //ldr        CF2, [COEF], #4
+	ldmia 	   COEF!,{CF1, CF2} //FB
     ldr        VLO, [VB1, #(4*(\val_x))]
     ldr        VHI, [VB1, #(4*(23 - \val_x))]
 

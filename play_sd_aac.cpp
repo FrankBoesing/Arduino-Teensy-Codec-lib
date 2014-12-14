@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino interface
+	Arduino Audiocodecs
 
 	Copyright (c) 2014 Frank Bösing
 
@@ -42,7 +42,9 @@
 #include "play_sd_aac.h"
 #include "common/assembly.h"
 
-#define AAC_SD_BUF_SIZE	3072 								//Enough space for a complete stereo frame
+//#define AAC_SD_BUF_SIZE	3072 								//Enough space for a complete stereo frame
+//#define AAC_SD_BUF_SIZE	2560 								//Enough space for a complete stereo frame
+#define AAC_SD_BUF_SIZE	(1536 + 768)
 #define AAC_BUF_SIZE	(AAC_MAX_NCHANS * AAC_MAX_NSAMPS)	//AAC output buffer
 
 #define DECODE_NUM_STATES 2									//How many steps in decode() ?
@@ -72,7 +74,7 @@ static unsigned int		playing;
 static HAACDecoder	hAACDecoder;
 static AACFrameInfo	aacFrameInfo;
 
-static void decode(void);
+static void decode(void) OPTIMIZE;
 static void aacstop(void);
 
 
@@ -267,8 +269,10 @@ int AudioPlaySdAac::play(const char *filename){
 	duration = 0;
 	sd_left = 0;
 
+	sd_p = sd_buf;
+	
 	if (setupMp4()) {
-		file.seek(firstChunk);
+		file.seek(firstChunk);	
 		sd_left = 0;
 		isRAW = false;
 	}
@@ -311,8 +315,6 @@ int AudioPlaySdAac::play(const char *filename){
 
 	decode_cycles_max_sd = 0;
 	decode_cycles_max = 0;
-
-	sd_p = sd_buf;
 
 	for (int i=0; i< DECODE_NUM_STATES; i++) decode(); 
 	

@@ -73,7 +73,6 @@ size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft
 			memset(sd_buf + dataLeft, 0, sd_bufsize - dataLeft);
 		}
 		
-		spaceLeft -= n;
 	}
 
 	return read;

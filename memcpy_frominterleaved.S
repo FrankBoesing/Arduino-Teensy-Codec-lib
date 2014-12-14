@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino interface
+	Arduino Audiocodecs
 
 	Copyright (c) 2014 Frank Bösing
 

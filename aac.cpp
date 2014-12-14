@@ -1,15 +1,7 @@
 
-//#define AAC_ENABLE_SBR
-
 #include "common/assembly.h"
 
 #include "aac/aacdec.h"
-
-#ifdef  AAC_ENABLE_SBR
- #include "aac/sbr.h"
- #include "aac/sbr.c"
-#endif
-
 #include "aac/aacdec.c"
 #include "aac/bitstream.c" 
 #include "aac/buffers.c"

@@ -1,5 +1,5 @@
 /*
-	Helix library Arduino interface
+	Arduino Audiocodecs
 
 	Copyright (c) 2014 Frank Bösing
 
@@ -68,7 +68,7 @@ private:
 	uintptr_t	play_pos; //upd
 	uint32_t	samples_played;//upd
 	//int			lastError;
-	void update(void);
+	void update(void) OPTIMIZE;
 };
 
 
