@@ -30,9 +30,6 @@
 	Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
 	Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>.
 
-	Der Helixdecoder selbst hat eine eigene Lizenz, bitte für mehr Informationen
-	in den Unterverzeichnissen nachsehen.
-
  */
 
 
@@ -43,20 +40,22 @@
 #include "AudioStream.h"
 #include "spi_interrupt.h"
 #include "flac/all.h"
+#include "audiobuffer.h"
+
+#define FLAC_USE_SWI
 
 
-//#define FLAC_USE_SWI 1 (not implemented now, TODO)
+#define FLAC_BUFFERS(x)  (x*2+2)
 
-
-class AudioPlaySdFlac : public AudioCodec 
+class AudioPlaySdFlac : public AudioCodec
 {
 public:
-	//AudioPlaySdMp3(void) : AudioStream(0, NULL) {}
+	AudioPlaySdFlac(void){};
 	int play(const char *filename);
 	bool pause(bool paused);
 	void stop(void);
-	bool isPlaying(void);	
-	
+	bool isPlaying(void);
+
 	uint32_t positionMillis(void);
 	uint32_t lengthMillis(void);
 	uint32_t bitrate(void);
@@ -65,12 +64,33 @@ public:
 	float processorUsageMaxDecoder(void);
 	float processorUsageMaxSD(void);
 
-private:
-	uintptr_t	play_pos; //upd
-	uint32_t	samples_played;//upd	
-	void update(void);
-	friend FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data);
-};
+//protected:
+	File		file;
+	uint32_t	samples_played = 0;
 
+	uint16_t	minbuffers = 0;
+	uint16_t 	playing = 0;
+	uint16_t	channels = 0;
+
+	AudioBuffer *audiobuffer;
+
+	static FLAC__StreamDecoder	*hFLACDecoder ;
+	static uint32_t	decode_cycles_max;
+	static uint32_t	decode_cycles_max_sd;
+	static uint32_t	decode_cycles_sd;
+
+	friend FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data);
+	friend FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data);
+    friend FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data);
+    friend FLAC__StreamDecoderTellStatus tell_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data);
+	friend FLAC__StreamDecoderLengthStatus length_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data);
+	friend FLAC__bool eof_callback(const FLAC__StreamDecoder *decoder, void *client_data);
+	friend void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
+
+	void update(void);
+	friend void decode(void) ;
+
+//private:
+};
 
 #endif

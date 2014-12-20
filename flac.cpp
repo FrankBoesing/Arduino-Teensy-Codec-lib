@@ -6,7 +6,7 @@
 
 #define VERSION "1.3.1"
 #define FLAC__INTEGER_ONLY_LIBRARY 1
-#define FLAC__OVERFLOW_DETECT 1
+//#define FLAC__OVERFLOW_DETECT 1
 #define HAVE_BSWAP32 1
 #define HAVE_BSWAP16 1
 
