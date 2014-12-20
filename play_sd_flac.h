@@ -45,7 +45,7 @@
 #define FLAC_USE_SWI
 
 
-#define FLAC_BUFFERS(x)  (x*2+2)
+#define FLAC_BUFFERS(x)  (x*2)
 
 class AudioPlaySdFlac : public AudioCodec
 {
