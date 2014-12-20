@@ -53,16 +53,17 @@ public:
 	}
 	size_t available(){ return freespace; }
 	size_t used(){ return bufsize-freespace; }
-	int16_t *alloc(unsigned size)
+	size_t getBufsize(void) {return bufsize;}
+	int16_t *alloc(void)
 	{
 		int16_t *ret = NULL;
 		__disable_irq();
-		if (freespace >= size)
+		if (freespace > 0)
 		{
-			freespace-=size;
+			freespace--;
 			ret = data + write * AUDIO_BLOCK_SAMPLES;
-			write+=size;
-			if (write >= bufsize) write-=bufsize;
+			write++;			
+			if (write >= bufsize) write=0;
 		}
 		__enable_irq();
 		return ret;
@@ -79,7 +80,7 @@ public:
 		}
 		__enable_irq();
 		return ret;
-	}
+	}	
 protected:
 	void init(void) {bufsize=freespace=read=write=0;data=NULL;}
 	int16_t *data;

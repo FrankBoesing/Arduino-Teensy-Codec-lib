@@ -158,7 +158,7 @@ int AudioPlaySdFlac::play(const char *filename){
 		lastError = ERR_CODEC_FILE_NOT_FOUND;
 		goto PlayErr;
 	}
-
+	audiobuffer = new AudioBuffer();
 	samples_played = 0;
 	channels = 0;
 	decode_cycles_max_sd = 0;
@@ -306,6 +306,7 @@ void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderError
 {
 	//Serial.println(FLAC__StreamDecoderErrorStatusString[status]);
 	//((AudioPlaySdFlac*)client_data)->stop();
+	//Serial.print("ERROR ");
 }
 
 /**
@@ -322,17 +323,14 @@ __attribute__ ((optimize("O3")))
 FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data)
 {
 	//TODO: Support more(?)/less bits_per_sample
-
 	AudioPlaySdFlac *obj = (AudioPlaySdFlac*) client_data;
-
-	int blocksize = frame->header.blocksize;
+	int blocksize = frame->header.blocksize & ~AUDIO_BLOCK_SAMPLES;
 	int channels = frame->header.channels;
 	obj->channels = channels;
 	size_t numbuffers = (blocksize * channels) / AUDIO_BLOCK_SAMPLES;
 
-	if (obj->audiobuffer == NULL)
-	{ //It is our very first frame.
-		obj->audiobuffer = new AudioBuffer();
+	if (obj->audiobuffer->getBufsize() == 0)
+	{ //It is our very first frame.		
 		obj->audiobuffer->allocMem(FLAC_BUFFERS(numbuffers));
 		obj->minbuffers	= numbuffers;
 	}
@@ -346,7 +344,8 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 		return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
 
 	//Copy all the data to the fifo. Decoded buffer is 32 bit, fifo is 16 bit
-	int16_t *abufPtr = obj->audiobuffer->alloc(numbuffers);
+	//int16_t *abufPtr = obj->audiobuffer->alloc(numbuffers);
+	//Serial.printf("Free:%d Req:%d\r\n", obj->audiobuffer->available(), numbuffers);
 	const FLAC__int32 *sbuf;
 	const FLAC__int32 *k;
 	int j = 0;
@@ -357,11 +356,12 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 		{
 			sbuf = &buffer[i][j];
 			k = sbuf + AUDIO_BLOCK_SAMPLES;
+			int16_t *abufPtr = obj->audiobuffer->alloc();
 			do
 			{
 				*abufPtr++ = *sbuf++;
 			} while (sbuf < k);
-
+			
 		} while (++i < channels);
 
 		j+=	AUDIO_BLOCK_SAMPLES;
@@ -426,7 +426,8 @@ void AudioPlaySdFlac::update(void)
 			FLAC__StreamDecoderState state;
 			state = FLAC__stream_decoder_get_state(hFLACDecoder);
 			if (state == FLAC__STREAM_DECODER_END_OF_STREAM ||
-				state == FLAC__STREAM_DECODER_ABORTED)
+				state == FLAC__STREAM_DECODER_ABORTED ||
+				state == FLAC__STREAM_DECODER_MEMORY_ALLOCATION_ERROR)
 				{
 					stop();
 					return;
@@ -434,7 +435,7 @@ void AudioPlaySdFlac::update(void)
 		}
 	}
 
-	if (audiobuffer->available() < minbuffers) return;
+	if (audiobuffer->getBufsize() > 0 && audiobuffer->available() < minbuffers) return;
 
 #ifndef FLAC_USE_SWI
 
