@@ -103,7 +103,8 @@ extern "C" {
 #define FLAC__SUBSET_MAX_BLOCK_SIZE_48000HZ (4608u)
 
 /** The maximum number of channels permitted by the format. */
-#define FLAC__MAX_CHANNELS (8u)
+//#define FLAC__MAX_CHANNELS (8u)
+#define FLAC__MAX_CHANNELS (2u) //FB
 
 /** The minimum sample resolution permitted by the format. */
 #define FLAC__MIN_BITS_PER_SAMPLE (4u)
