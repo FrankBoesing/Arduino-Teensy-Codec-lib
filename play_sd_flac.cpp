@@ -326,17 +326,17 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 	AudioPlaySdFlac *obj = (AudioPlaySdFlac*) client_data;
 	int blocksize = frame->header.blocksize & ~AUDIO_BLOCK_SAMPLES;
 	int channels = frame->header.channels;
+	int bps = frame->header.bits_per_sample;
 	obj->channels = channels;
 	size_t numbuffers = (blocksize * channels) / AUDIO_BLOCK_SAMPLES;
 
 	if (obj->audiobuffer->getBufsize() == 0)
-	{ //It is our very first frame.		
+	{ //It is our very first frame.
 		obj->audiobuffer->allocMem(FLAC_BUFFERS(numbuffers));
 		obj->minbuffers	= numbuffers;
 	}
 
 	if ( frame->header.sample_rate != AUDIOCODECS_SAMPLE_RATE ||
-		frame->header.bits_per_sample != 16 ||
 		channels==0 || channels > 2 ||
 		blocksize < AUDIO_BLOCK_SAMPLES ||
 		obj->audiobuffer->available() < numbuffers
@@ -346,27 +346,76 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 	//Copy all the data to the fifo. Decoded buffer is 32 bit, fifo is 16 bit
 	//int16_t *abufPtr = obj->audiobuffer->alloc(numbuffers);
 	//Serial.printf("Free:%d Req:%d\r\n", obj->audiobuffer->available(), numbuffers);
+	
+	
 	const FLAC__int32 *sbuf;
 	const FLAC__int32 *k;
-	int j = 0;
-	do
+	if (bps==16) //16 BITS / SAMPLE
 	{
-		int i = 0;
+		int j = 0;
 		do
 		{
-			sbuf = &buffer[i][j];
-			k = sbuf + AUDIO_BLOCK_SAMPLES;
-			int16_t *abufPtr = obj->audiobuffer->alloc();
+			int i = 0;
 			do
 			{
-				*abufPtr++ = *sbuf++;
-			} while (sbuf < k);
-			
-		} while (++i < channels);
+				sbuf = &buffer[i][j];
+				k = sbuf + AUDIO_BLOCK_SAMPLES;
+				int16_t *abufPtr = obj->audiobuffer->alloc();
+				do
+				{
+					*abufPtr++ = (*sbuf++);
+				} while (sbuf < k);
 
-		j+=	AUDIO_BLOCK_SAMPLES;
-	} while (j < blocksize);
+			} while (++i < channels);
 
+			j+=	AUDIO_BLOCK_SAMPLES;
+		} while (j < blocksize);
+	}
+	else if (bps < 16) //2..15 BITS /SAMPLE
+	{
+		int shift = 16-bps;
+		int j = 0;
+		do
+		{
+			int i = 0;
+			do
+			{
+				sbuf = &buffer[i][j];
+				k = sbuf + AUDIO_BLOCK_SAMPLES;
+				int16_t *abufPtr = obj->audiobuffer->alloc();
+				do
+				{
+					*abufPtr++ = (*sbuf++)<<shift;
+				} while (sbuf < k);
+
+			} while (++i < channels);
+
+			j+=	AUDIO_BLOCK_SAMPLES;
+		} while (j < blocksize);	
+	}  
+	else  //17..32 BITS /SAMPLE
+	{
+		int shift = bps-16;
+		int j = 0;
+		do
+		{
+			int i = 0;
+			do
+			{
+				sbuf = &buffer[i][j];
+				k = sbuf + AUDIO_BLOCK_SAMPLES;
+				int16_t *abufPtr = obj->audiobuffer->alloc();
+				do
+				{
+					*abufPtr++ = (*sbuf++)>>shift;
+				} while (sbuf < k);
+
+			} while (++i < channels);
+
+			j+=	AUDIO_BLOCK_SAMPLES;
+		} while (j < blocksize);	
+	}
+	
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
