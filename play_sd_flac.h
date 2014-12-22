@@ -64,7 +64,7 @@ public:
 	float processorUsageMaxDecoder(void);
 	float processorUsageMaxSD(void);
 
-//protected:
+protected:
 	File		file;
 	uint32_t	samples_played = 0;
 

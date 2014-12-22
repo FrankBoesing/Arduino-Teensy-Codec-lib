@@ -321,10 +321,9 @@ void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderError
  */
 __attribute__ ((optimize("O3")))
 FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data)
-{
-	//TODO: Support more(?)/less bits_per_sample
+{	
 	AudioPlaySdFlac *obj = (AudioPlaySdFlac*) client_data;
-	int blocksize = frame->header.blocksize & ~AUDIO_BLOCK_SAMPLES;
+	int blocksize = frame->header.blocksize  & ~(AUDIO_BLOCK_SAMPLES-1) ;
 	int channels = frame->header.channels;
 	int bps = frame->header.bits_per_sample;
 	obj->channels = channels;
