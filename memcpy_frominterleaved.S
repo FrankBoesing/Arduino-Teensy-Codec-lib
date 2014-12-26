@@ -38,11 +38,36 @@
 
 //Fast copy decoded data (interleaved LRLRLR) to the two audiobuffers (LLL, RRR)
  
- .cpu cortex-m4
+#if TEENSYDUINO < 121 
+#warning Audiomemory might not be aligned(4). Can cause a crash. See memcpy_frominterleaved.S for more Info
+#endif
+/*
+
+To Fix this warning:
+1) Change typedef struct audio_block_struct in AudioStream.h to  :
+
+typedef struct audio_block_struct {
+	unsigned char ref_count;
+	unsigned char memory_pool_index;
+	unsigned char reserve1; // Add this Line
+	unsigned char reserve2; // Add this Line
+	int16_t data[AUDIO_BLOCK_SAMPLES];
+} audio_block_t;
+
+2) Comment the warning with "//"
+
+The reason is, that audio_block_struct is not alignable(4) without these lines.
+Unaligned accesses between upper/lower ram are not supported by teensy-hardware.
+It's possible (and i've seen this) that an audioblock is located exactly at this border.
+
+*/
+
+.cpu cortex-m4
 .syntax unified
 .thumb
 .text
 .align	2
+
 
 /* void memcpy_frominterleaved(short *dst1, short *dst2, short *src); */
  .global	memcpy_frominterleaved
@@ -55,7 +80,7 @@
 
 	push	{r3-r12,r14}
 	add r14, r2, #512
-	.align 4	
+	.align 2	
 .loop:
 
 	.irp offset, 1,2	
@@ -79,10 +104,10 @@
 	stmia r1!,{r4,r6,r8,r10}	
 	
 	.endr
-	
+
 	cmp r14, r2
 	bne .loop
-	
+
 	pop	{r3-r12,r14}
 
 	BX lr
