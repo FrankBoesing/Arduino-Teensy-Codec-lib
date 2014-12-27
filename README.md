@@ -1,13 +1,14 @@
 Arduino-Teensy-Codec-lib
 ======================
 
-Audiolibrary plugin, plays up to 320 kbps *.MP3, *.MP4, *.M4A, or *.AAC in software without external hardware - 
+Audiolibrary plugin, plays up to 320 kbps MP3, MP4(AAC), M4A(AAC), AAC-Raw or FLAC in software without external hardware - 
 with only 48MHz.
 
-Optimized for ARM Thumb2.
+- Optimized for ARM Thumb2.
+- Play from SD, built-in Flash or optional serial Flash (with audio-shield)
+- Flac 4-24 BIT, Blocksize 128-1024 Bytes
 
 planned:
- - *.flac
  - streaming audio
 
  HINT: -O2 gives much better performance
