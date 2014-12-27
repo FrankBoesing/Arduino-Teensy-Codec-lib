@@ -27,7 +27,7 @@
 	OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
 	Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
 	Siehe die GNU General Public License für weitere Details.
-
+ 6790´tzui#
 	Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
 	Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>.
 
@@ -46,29 +46,33 @@
 #include "spi_interrupt.h"
 #include "mp3/mp3dec.h"
 
-//class AudioPlaySdMp3 : public AudioStream
-class AudioPlaySdMp3 : public AudioCodec 
+class AudioPlaySdMp3 : public AudioCodec
 {
 public:
-	//AudioPlaySdMp3(void) : AudioStream(0, NULL) {}
-	int play(const char *filename);
-	bool pause(bool paused);
 	void stop(void);
-	bool isPlaying(void);	
-	
-	uint32_t positionMillis(void);
-	uint32_t lengthMillis(void);
-	uint32_t bitrate(void);
+	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 
-	void processorUsageMaxResetDecoder(void);
-	float processorUsageMaxDecoder(void);
-	float processorUsageMaxSD(void);
+protected:
+	uint8_t			*sd_buf;
+	uint8_t			*sd_p;
+	int				sd_left;
 
-private:
-	uintptr_t	play_pos; //upd
-	uint32_t	samples_played;//upd
-	//int			lastError;
-	void update(void) OPTIMIZE;
+	short			*buf[2];
+	size_t			decoded_length[2];
+	size_t			decoding_block;
+	unsigned int	decoding_state; //state 0: read sd, state 1: decode
+
+	size_t 	  		size_id3;
+	uintptr_t 		play_pos;
+
+	HMP3Decoder		hMP3Decoder;
+	MP3FrameInfo	mp3FrameInfo;
+
+	int play(void);
+	void update(void);
+	friend void decodeMp3(void);
 };
 
 

@@ -54,28 +54,41 @@ class AudioPlaySdAac : public AudioCodec
 {
 public:
 	//AudioPlaySdAac(void) : AudioStream(0, NULL) {}
-	int play(const char *filename) ;
-	bool pause(bool paused);
+	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+//	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	void stop(void);
-	bool isPlaying(void);
-	
-	uint32_t positionMillis(void);
+
 	uint32_t lengthMillis(void);
-	uint32_t bitrate(void);
 
-	void processorUsageMaxResetDecoder(void);
-	float processorUsageMaxDecoder(void);
-	float processorUsageMaxSD(void);
+protected:
 
+	uint8_t			*sd_buf;
+	uint8_t			*sd_p;
+	int				sd_left;
+
+	short			*buf[2];
+	size_t			decoded_length[2];
+	size_t			decoding_block;
+	unsigned int	decoding_state; //state 0: read sd, state 1: decode
+
+	bool isRAW;		//true AAC(streamable)
+	uintptr_t		play_pos;
+	size_t 			size_id3;
+	uint32_t 		firstChunk, lastChunk;	//for MP4/M4A //TODO: use for ID3 too
+	unsigned		duration;
+
+	HAACDecoder		hAACDecoder;
+	AACFrameInfo	aacFrameInfo;
+
+	int play(void);
+	uint16_t fread16(size_t position);
+	uint32_t fread32(size_t position);
 	void setupDecoder(int channels, int samplerate, int profile);
-	_ATOM findMp4Atom(const char *atom, uint32_t posi);
-private:
-
-	uintptr_t	play_pos;
-	uint32_t	duration;	
-	uint32_t	samples_played;	
-	bool		setupMp4(void);
-	void update(void) OPTIMIZE;
+	_ATOM findMp4Atom(const char *atom, const uint32_t posi, const bool loop);
+	bool setupMp4(void);
+	void update(void);
+	friend void decodeAac(void);
 };
 
 

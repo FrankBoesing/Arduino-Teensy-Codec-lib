@@ -35,8 +35,6 @@
 
 #include "play_sd_flac.h"
 
-//AudioBuffer 			audiobuffer(FLAC_BUFFERS);
-
 FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data);
 FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data);
 FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data);
@@ -46,17 +44,22 @@ FLAC__bool eof_callback(const FLAC__StreamDecoder *decoder, void *client_data);
 void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
 
 FLAC__StreamDecoder	*AudioPlaySdFlac::hFLACDecoder ;
-uint32_t	AudioPlaySdFlac::decode_cycles_max;
-uint32_t	AudioPlaySdFlac::decode_cycles_max_sd;
-uint32_t	AudioPlaySdFlac::decode_cycles_sd;
 
-void decode(void);
+unsigned	AudioCodec::decode_cycles;
+unsigned	AudioCodec::decode_cycles_max;
+unsigned	AudioCodec::decode_cycles_read;
+unsigned	AudioCodec::decode_cycles_max_read;
+short		AudioCodec::lastError;
+
+void decodeFlac(void);
 
 void AudioPlaySdFlac::stop(void)
 {
+
+	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
 	AudioStopUsingSPI();
-	__disable_irq();
-	playing = 0;
+	playing = codec_stopped;
+
 	delete audiobuffer;
 	audiobuffer = NULL;
 	if (hFLACDecoder != NULL)
@@ -65,107 +68,54 @@ void AudioPlaySdFlac::stop(void)
 		FLAC__stream_decoder_delete(hFLACDecoder);
 		hFLACDecoder=NULL;
 	};
-	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	__enable_irq();
-	file.close();
+
+	fclose();
 }
 
-bool AudioPlaySdFlac::pause(bool paused)
-{
-	if (playing) {
-		if (paused) playing = 2;
-		else playing = 1;
-	}
-	return (playing == 2);
-}
-
-
-bool AudioPlaySdFlac::isPlaying(void)
-{
-	return (playing > 0);
-}
-
-uint32_t AudioPlaySdFlac::positionMillis(void)
-{
-	return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;
-}
 
 uint32_t AudioPlaySdFlac::lengthMillis(void)
-{/*
-	if (playing) {
-		return (file.size() - size_id3) / (flacFrameInfo.bitrate / 8 ) * 1000;
-	}
-
-	else */	return 0;
+{
+	if (hFLACDecoder != NULL)
+		return (AUDIO_SAMPLE_RATE_EXACT / 1000) * FLAC__stream_decoder_get_total_samples(hFLACDecoder);
+	else
+		return 0;
 }
 
-uint32_t AudioPlaySdFlac::bitrate(void)
-{/*
-	if (playing) {
-		return flacFrameInfo.bitrate;
-	}
-	else */ return 0;
+unsigned AudioPlaySdFlac::sampleRate(void){
+	if (hFLACDecoder != NULL)
+		return  FLAC__stream_decoder_get_total_samples(hFLACDecoder);
+	else
+		return 0;
 }
-
-void AudioPlaySdFlac::processorUsageMaxResetDecoder(void){
-	__disable_irq();
-	decode_cycles_max = 0;
-	decode_cycles_max_sd = 0;
-	__enable_irq();
-};
-
-float AudioPlaySdFlac::processorUsageMaxDecoder(void){
-//TODO return decode_cycles_max / 10000;
-	return 0;
-};
-
-float AudioPlaySdFlac::processorUsageMaxSD(void){
-//TODO
-	return 0;
-};
-
-
+/*
 int AudioPlaySdFlac::play(const char *filename){
 	stop();
+	if (!fopen(filename))
+		return ERR_CODEC_FILE_NOT_FOUND;
+	return initPlay();
+}
 
+int AudioPlaySdFlac::play(const size_t p, const size_t size){
+	stop();
+	if (!fopen(p,size))
+		return ERR_CODEC_FILE_NOT_FOUND;
+	return initPlay();
+}
+*/
+int AudioPlaySdFlac::play(void)
+{
+	initVars();
 	lastError = ERR_CODEC_NONE;
 	hFLACDecoder =  FLAC__stream_decoder_new();
-
 	if (!hFLACDecoder)
 	{
 		lastError = ERR_CODEC_OUT_OF_MEMORY;
 		goto PlayErr;
 	}
 
-
-#ifdef FLAC_USE_SWI
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wpmf-conversions"
-	//_VectorsRam[IRQ_AUDIOCODEC + 16] = reinterpret_cast<void (*)()>&AudioPlaySdFlac::decode;
-	//_VectorsRam[IRQ_AUDIOCODEC + 16] = reinterpret_cast(void (*)())&decode;
-	_VectorsRam[IRQ_AUDIOCODEC + 16] = decode;
-//#pragma GCC diagnostic pop
-	init_interrupt();
-	//_VectorsRam[IRQ_AUDIOCODEC + 16] = &decode;
-	NVIC_SET_PRIORITY(IRQ_AUDIOCODEC, IRQ_AUDIOCODEC_PRIO);
-	NVIC_ENABLE_IRQ(IRQ_AUDIOCODEC);
-#endif
-
-	file = SD.open(filename);
-
-	if (!file)
-	{
-		lastError = ERR_CODEC_FILE_NOT_FOUND;
-		goto PlayErr;
-	}
 	audiobuffer = new AudioBuffer();
-	samples_played = 0;
-	channels = 0;
-	decode_cycles_max_sd = 0;
-	decode_cycles_max = 0;
 
 	FLAC__StreamDecoderInitStatus ret;
-
 	ret = FLAC__stream_decoder_init_stream(hFLACDecoder,
 		read_callback,
 		seek_callback,
@@ -193,9 +143,12 @@ int AudioPlaySdFlac::play(const char *filename){
 		goto PlayErr;
 	}
 
-	//Serial.println("Start OK");
+#ifdef FLAC_USE_SWI
+	_VectorsRam[IRQ_AUDIOCODEC + 16] = &decodeFlac;
+	initSwi();
+#endif
 
-	playing = 1;
+	playing = codec_playing;
 	AudioStartUsingSPI();
 
     return lastError;
@@ -203,8 +156,8 @@ int AudioPlaySdFlac::play(const char *filename){
 PlayErr:
 	stop();
 	return lastError;
-
 }
+
 __attribute__ ((optimize("O2")))
 FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
 {
@@ -212,7 +165,7 @@ FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, 
 	FLAC__StreamDecoderReadStatus ret = FLAC__STREAM_DECODER_READ_STATUS_ABORT;
 	if(*bytes > 0)
 	{
-		int num = ((AudioPlaySdFlac*)client_data)->file.read(buffer, *bytes);
+		int num = ((AudioPlaySdFlac*)client_data)->fread(buffer, *bytes);
 		if (num > 0)
 		{
 			ret = FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
@@ -226,7 +179,7 @@ FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, 
 		else *bytes = 0;
 	}
 
-	((AudioPlaySdFlac*)client_data)->decode_cycles_sd += (ARM_DWT_CYCCNT - cycles);
+	((AudioPlaySdFlac*)client_data)->decode_cycles_read += (ARM_DWT_CYCCNT - cycles);
 	return ret;
 }
 
@@ -241,7 +194,7 @@ FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, 
  */
 FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder* decoder, FLAC__uint64 absolute_byte_offset, void* client_data)
 {
-	if (!((AudioPlaySdFlac*)client_data)->file.seek(absolute_byte_offset)) {
+	if (!((AudioPlaySdFlac*)client_data)->fseek(absolute_byte_offset)) {
         // seek failed
         return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
     }
@@ -261,7 +214,7 @@ FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder* decoder, 
 FLAC__StreamDecoderTellStatus tell_callback(const FLAC__StreamDecoder* decoder, FLAC__uint64* absolute_byte_offset, void* client_data)
 {
     // update offset
-    *absolute_byte_offset = (FLAC__uint64)((AudioPlaySdFlac*)client_data)->file.position();
+    *absolute_byte_offset = (FLAC__uint64)((AudioPlaySdFlac*)client_data)->fposition();
     return FLAC__STREAM_DECODER_TELL_STATUS_OK;
 }
 
@@ -277,7 +230,7 @@ FLAC__StreamDecoderTellStatus tell_callback(const FLAC__StreamDecoder* decoder, 
 FLAC__StreamDecoderLengthStatus length_callback(const FLAC__StreamDecoder* decoder, FLAC__uint64* stream_length, void* client_data)
 {
 
-    *stream_length = (FLAC__uint64)((AudioPlaySdFlac*)client_data)->file.size();
+    *stream_length = (FLAC__uint64)((AudioPlaySdFlac*)client_data)->fsize();
     return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
 
 }
@@ -292,7 +245,7 @@ FLAC__StreamDecoderLengthStatus length_callback(const FLAC__StreamDecoder* decod
  */
 FLAC__bool eof_callback(const FLAC__StreamDecoder* decoder, void* client_data)
 {
-    return (((AudioPlaySdFlac*)client_data)->file.available()<=0)? true : false;
+    return ((AudioPlaySdFlac*)client_data)->f_eof();
 }
 /**
  * Error callback. Called when error occured during decoding.
@@ -321,22 +274,22 @@ void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderError
  */
 __attribute__ ((optimize("O3")))
 FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data)
-{	
+{
 	AudioPlaySdFlac *obj = (AudioPlaySdFlac*) client_data;
 	int blocksize = frame->header.blocksize  & ~(AUDIO_BLOCK_SAMPLES-1) ;
-	int channels = frame->header.channels;
+	int chan = frame->header.channels;
 	int bps = frame->header.bits_per_sample;
-	obj->channels = channels;
-	size_t numbuffers = (blocksize * channels) / AUDIO_BLOCK_SAMPLES;
+	size_t numbuffers = (blocksize * chan) / AUDIO_BLOCK_SAMPLES;
 
 	if (obj->audiobuffer->getBufsize() == 0)
 	{ //It is our very first frame.
+		obj->_channels = chan;
 		obj->audiobuffer->allocMem(FLAC_BUFFERS(numbuffers));
 		obj->minbuffers	= numbuffers;
 	}
 
 	if ( frame->header.sample_rate != AUDIOCODECS_SAMPLE_RATE ||
-		channels==0 || channels > 2 ||
+		chan==0 || chan> 2 ||
 		blocksize < AUDIO_BLOCK_SAMPLES ||
 		obj->audiobuffer->available() < numbuffers
 		)
@@ -345,8 +298,8 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 	//Copy all the data to the fifo. Decoded buffer is 32 bit, fifo is 16 bit
 	//int16_t *abufPtr = obj->audiobuffer->alloc(numbuffers);
 	//Serial.printf("Free:%d Req:%d\r\n", obj->audiobuffer->available(), numbuffers);
-	
-	
+
+
 	const FLAC__int32 *sbuf;
 	const FLAC__int32 *k;
 	if (bps==16) //16 BITS / SAMPLE
@@ -365,7 +318,7 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 					*abufPtr++ = (*sbuf++);
 				} while (sbuf < k);
 
-			} while (++i < channels);
+			} while (++i < chan);
 
 			j+=	AUDIO_BLOCK_SAMPLES;
 		} while (j < blocksize);
@@ -387,11 +340,11 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 					*abufPtr++ = (*sbuf++)<<shift;
 				} while (sbuf < k);
 
-			} while (++i < channels);
+			} while (++i < chan);
 
 			j+=	AUDIO_BLOCK_SAMPLES;
-		} while (j < blocksize);	
-	}  
+		} while (j < blocksize);
+	}
 	else  //17..32 BITS /SAMPLE
 	{
 		int shift = bps-16;
@@ -409,12 +362,12 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 					*abufPtr++ = (*sbuf++)>>shift;
 				} while (sbuf < k);
 
-			} while (++i < channels);
+			} while (++i < chan);
 
 			j+=	AUDIO_BLOCK_SAMPLES;
-		} while (j < blocksize);	
+		} while (j < blocksize);
 	}
-	
+
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -428,14 +381,14 @@ void AudioPlaySdFlac::update(void)
 	audio_block_t	*audioblockR;
 
 	//paused or stopped ?
-	if (0==playing) return;
-	if (2==playing) return;
 
-	if (channels > 0 && audiobuffer->used() >= channels)
+	if (playing != codec_playing) return;
+
+	if (_channels > 0 && audiobuffer->used() >= _channels)
 	{
 		audioblockL = allocate();
 		if (!audioblockL) return;
-		if (channels == 2)
+		if (_channels == 2)
 		{
 			audioblockR = allocate();
 			if (!audioblockR) {
@@ -499,16 +452,18 @@ void AudioPlaySdFlac::update(void)
 #endif
 }
 
-void decode(void)
+void decodeFlac(void)
 {
 	//if (!audiobuffer.available()) return;
-	AudioPlaySdFlac::decode_cycles_sd = 0;
+	AudioPlaySdFlac::decode_cycles_read = 0;
 
 	uint32_t cycles = ARM_DWT_CYCCNT;
 	if (AudioPlaySdFlac::hFLACDecoder == NULL) return;
 	FLAC__stream_decoder_process_single(AudioPlaySdFlac::hFLACDecoder);
 	cycles = (ARM_DWT_CYCCNT - cycles);
-	if (cycles - AudioPlaySdFlac::decode_cycles_sd > AudioPlaySdFlac::decode_cycles_max ) AudioPlaySdFlac::decode_cycles_max = cycles - AudioPlaySdFlac::decode_cycles_sd;
-	if (AudioPlaySdFlac::decode_cycles_sd > AudioPlaySdFlac::decode_cycles_max_sd ) AudioPlaySdFlac::decode_cycles_max_sd = AudioPlaySdFlac::decode_cycles_sd;
+	if (cycles - AudioPlaySdFlac::decode_cycles > AudioPlaySdFlac::decode_cycles_max )
+			AudioPlaySdFlac::decode_cycles_max = cycles - AudioPlaySdFlac::decode_cycles;
+	if (AudioPlaySdFlac::decode_cycles_read > AudioPlaySdFlac::decode_cycles_max_read )
+			AudioPlaySdFlac::decode_cycles_max_read = AudioPlaySdFlac::decode_cycles_read;
 
 }

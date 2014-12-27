@@ -62,7 +62,7 @@ public:
 		{
 			freespace--;
 			ret = data + write * AUDIO_BLOCK_SAMPLES;
-			write++;			
+			write++;
 			if (write >= bufsize) write=0;
 		}
 		__enable_irq();
@@ -80,7 +80,7 @@ public:
 		}
 		__enable_irq();
 		return ret;
-	}	
+	}
 protected:
 	void init(void) {bufsize=freespace=read=write=0;data=NULL;}
 	int16_t *data;

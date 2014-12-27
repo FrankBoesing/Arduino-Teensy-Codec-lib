@@ -1,18 +1,9 @@
 
-
-//Ram Usage:
-//Blocksize 128 : 3852 Bytes
-
-
 #define VERSION "1.3.1"
 #define FLAC__INTEGER_ONLY_LIBRARY 1
 //#define FLAC__OVERFLOW_DETECT 1
 #define HAVE_BSWAP32 1
 #define HAVE_BSWAP16 1
-
-//TODO:
-//- Option to disable CRC
-//- Use Teensy-CRC-Unit
 
 #include "flac/all.h"
 #include "flac/lpc.c"

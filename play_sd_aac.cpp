@@ -38,113 +38,61 @@
 
  /* The Helix-Library is modified for Teensy 3.1 */
 
+ // Total RAM Usage: 31 KB
 
 #include "play_sd_aac.h"
 #include "common/assembly.h"
 
-//#define AAC_SD_BUF_SIZE	3072 								//Enough space for a complete stereo frame
+#define AAC_SD_BUF_SIZE	3072 								//Enough space for a complete stereo frame
 //#define AAC_SD_BUF_SIZE	2560 								//Enough space for a complete stereo frame
-#define AAC_SD_BUF_SIZE	(1536 + 768)
+//#define AAC_SD_BUF_SIZE	(1536 + 768)
 #define AAC_BUF_SIZE	(AAC_MAX_NCHANS * AAC_MAX_NSAMPS)	//AAC output buffer
 
 #define DECODE_NUM_STATES 2									//How many steps in decode() ?
+#define CODEC_DEBUG
 
-static File				file;
-
-static uint8_t			*sd_buf;
-static uint8_t			*sd_p;
-static int				sd_left;
-
-static short			*buf[2]; //output buffers
-static size_t			decoded_length[2];
-static size_t			decoding_block;
-static unsigned int		decoding_state; //state 0: read sd, state 1: decode
-
-
-static bool				isRAW;					//true AAC(streamable)
-static size_t 			size_id3;
-static uint32_t 		firstChunk, lastChunk;	//for MP4/M4A //TODO: use for ID3 too
-
-static uint32_t			decode_cycles_max;
-static uint32_t			decode_cycles_max_sd;
-
-static unsigned int		playing;
-
-
-static HAACDecoder	hAACDecoder;
-static AACFrameInfo	aacFrameInfo;
-
-static void decode(void) OPTIMIZE;
-static void aacstop(void);
-
+static AudioPlaySdAac 	*aacobjptr;
+void decodeAac(void);
 
 void AudioPlaySdAac::stop(void)
 {
-	aacstop();
-}
-
-bool AudioPlaySdAac::pause(bool paused)
-{
-	if (playing) {
-		if (paused) playing = 2;
-		else playing = 1;
-	}
-	return (playing == 2);
-}
-
-
-bool AudioPlaySdAac::isPlaying(void)
-{
-	return (playing > 0);
-}
-
-uint32_t AudioPlaySdAac::positionMillis(void)
-{
-	return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;
+	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
+	AudioStopUsingSPI();
+	playing = codec_stopped;
+	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
+	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
+	freeBuffer();
+	if (hAACDecoder) {AACFreeDecoder(hAACDecoder);hAACDecoder=NULL;};
+	fclose();
 }
 
 uint32_t AudioPlaySdAac::lengthMillis(void)
 {
-	if (playing) {
-		if (duration)
-			return duration;
-		else //This is an estimate, takes not into account VBR, but better than nothing:
-			return (file.size() - size_id3) / (aacFrameInfo.bitRate / 8 ) * 1000;
-	}
-	else return 0;
+	if (duration)
+		return duration;
+	else
+		return AudioCodec::lengthMillis();
 }
 
-uint32_t AudioPlaySdAac::bitrate(void)
+//read big endian 16-Bit from fileposition(position)
+uint16_t AudioPlaySdAac::fread16(size_t position)
 {
-	if (playing) {
-		return aacFrameInfo.bitRate;
-	}
-	else return 0;
+	uint16_t tmp16;
+	fseek(position);
+	fread((uint8_t *) &tmp16, sizeof(tmp16));
+	return REV16(tmp16);
 }
 
-void AudioPlaySdAac::processorUsageMaxResetDecoder(void){
-	__disable_irq();
-	decode_cycles_max = 0;
-	decode_cycles_max_sd = 0;
-	__enable_irq();
-};
+//read big endian 32-Bit from fileposition(position)
+uint32_t AudioPlaySdAac::fread32(size_t position)
+{
+	uint32_t tmp32;
+	fseek(position);
+	fread((uint8_t *) &tmp32, sizeof(tmp32));
+	return REV32(tmp32);
+}
 
-float AudioPlaySdAac::processorUsageMaxDecoder(void){
-	//this is somewhat incorrect, it does not take the interruptions of update() into account -
-	//therefore the returned number is too high.
-	//Todo: better solution
-	return (decode_cycles_max / (0.026*F_CPU)) * 100;
-};
-
-float AudioPlaySdAac::processorUsageMaxSD(void){
-	//this is somewhat incorrect, it does not take the interruptions of update() into account -
-	//therefore the returned number is too high.
-	//Todo: better solution
-	return (decode_cycles_max_sd / (0.026*F_CPU)) * 100;
-};
-
-
-_ATOM AudioPlaySdAac::findMp4Atom(const char *atom, uint32_t posi)
+_ATOM AudioPlaySdAac::findMp4Atom(const char *atom, const uint32_t posi, const bool loop = true)
 {
 
 	bool r;
@@ -154,15 +102,15 @@ _ATOM AudioPlaySdAac::findMp4Atom(const char *atom, uint32_t posi)
 	ret.position = posi;
 	do
 	{
-		r = file.seek(ret.position);
-		file.read((uint8_t *) &atomInfo, sizeof(atomInfo));
+		r = fseek(ret.position);
+		fread((uint8_t *) &atomInfo, sizeof(atomInfo));
 		ret.size = REV32(atomInfo.size);
+		//ret.size = atomInfo.size;
 		if (strncmp(atom, atomInfo.name, 4)==0){
 			return ret;
 		}
 		ret.position += ret.size ;
-	} while (r);
-
+	} while (loop && r);
 	ret.position = 0;
 	ret.size = 0;
 	return ret;
@@ -171,8 +119,7 @@ _ATOM AudioPlaySdAac::findMp4Atom(const char *atom, uint32_t posi)
 
 bool AudioPlaySdAac::setupMp4(void)
 {
-
-	_ATOM ftyp = findMp4Atom("ftyp",0);
+	_ATOM ftyp = findMp4Atom("ftyp",0, false);
 	if (!ftyp.size)
 		return false; //no mp4/m4a file
 
@@ -183,8 +130,8 @@ bool AudioPlaySdAac::setupMp4(void)
 
 	//determine duration:
 	uint32_t mdhd = findMp4Atom("mdhd", mdia + 8).position;
-	uint32_t timescale = fread32(file, mdhd + 8 + 0x0c);
-	duration = 1000.0 * ((float)fread32(file, mdhd + 8 + 0x10) / (float)timescale);
+	uint32_t timescale = fread32(mdhd + 8 + 0x0c);
+	duration = 1000.0 * ((float)fread32(mdhd + 8 + 0x10) / (float)timescale);
 
 	//MP4-data has no aac-frames, so we have to set the parameters by hand.
 	uint32_t minf = findMp4Atom("minf", mdia + 8).position;
@@ -194,9 +141,10 @@ bool AudioPlaySdAac::setupMp4(void)
 	if (!stsd.size)
 		return false; //something is not ok
 
-	uint16_t channels = fread16(file, stsd.position + 8 + 0x20);
-	//uint16_t bits		= fread16(file, stsd.position + 8 + 0x22); //not used
-	uint16_t samplerate = fread32(file, stsd.position + 8 + 0x26);
+	uint16_t channels = fread16(stsd.position + 8 + 0x20);
+	//uint16_t channels = 1;
+	//uint16_t bits		= fread16(stsd.position + 8 + 0x22); //not used
+	uint16_t samplerate = fread32(stsd.position + 8 + 0x26);
 
 	setupDecoder(channels, samplerate, AAC_PROFILE_LC);
 
@@ -204,11 +152,16 @@ bool AudioPlaySdAac::setupMp4(void)
 	uint32_t stco = findMp4Atom("stco", stbl + 8).position;
 
 	//number of chunks:
-	uint32_t nChunks = fread32(file, stco + 8 + 0x04);
+	uint32_t nChunks = fread32(stco + 8 + 0x04);
 	//first entry from chunk table:
-	firstChunk = fread32(file, stco + 8 + 0x08);
+	firstChunk = fread32(stco + 8 + 0x08);
 	//last entry from chunk table:
-	lastChunk = fread32(file, stco + 8 + 0x04 + nChunks * 4);
+	lastChunk = fread32(stco + 8 + 0x04 + nChunks * 4);
+
+	if (nChunks == 1) {
+		_ATOM mdat =  findMp4Atom("mdat", 0);
+		lastChunk = mdat.size;
+	}
 
 #if 0
 	Serial.print("mdhd duration=");
@@ -238,27 +191,20 @@ void AudioPlaySdAac::setupDecoder(int channels, int samplerate, int profile)
 	AACSetRawBlockParams(hAACDecoder, 0, &aacFrameInfo);
 }
 
-int AudioPlaySdAac::play(const char *filename){
-	stop();
-
+int AudioPlaySdAac::play(void){
 	lastError = ERR_CODEC_NONE;
-	
-	sd_buf = (uint8_t *) malloc(AAC_SD_BUF_SIZE);
+	initVars();
+	sd_buf = allocBuffer(AAC_SD_BUF_SIZE);
+	if (!sd_buf) return ERR_CODEC_OUT_OF_MEMORY;
+
+	aacobjptr = this;
+
 	buf[0] = (short *) malloc(AAC_BUF_SIZE * sizeof(int16_t));
 	buf[1] = (short *) malloc(AAC_BUF_SIZE * sizeof(int16_t));
 
 	hAACDecoder = AACInitDecoder();
-	
-	if (!sd_buf || !buf[0] || !buf[1] || !hAACDecoder)
-	{
-		lastError = ERR_CODEC_OUT_OF_MEMORY;
-		stop();
-		return lastError;
-	}	
-	
-	file = SD.open(filename);
 
-	if (!file) 
+	if (!buf[0] || !buf[1] || !hAACDecoder)
 	{
 		lastError = ERR_CODEC_OUT_OF_MEMORY;
 		stop();
@@ -270,23 +216,26 @@ int AudioPlaySdAac::play(const char *filename){
 	sd_left = 0;
 
 	sd_p = sd_buf;
-	
+
 	if (setupMp4()) {
-		file.seek(firstChunk);	
+		fseek(firstChunk);
 		sd_left = 0;
 		isRAW = false;
+		//Serial.print("mp4");
 	}
 	else { //NO MP4. Do we have an ID3TAG ?
-		file.seek(0);
+
+		fseek(0);
 		//Read-ahead 10 Bytes to detect ID3
-		sd_left = file.read(sd_buf, 10);
+		sd_left = fread(sd_buf, 10);
 		//Skip ID3, if existent
 		uint32_t skip = skipID3(sd_buf);
 		if (skip) {
 			size_id3 = skip;
 			int b = skip & 0xfffffe00;
-			file.seek(b);
+			fseek(b);
 			sd_left = 0;
+			//Serial.print("ID3");
 		} else size_id3 = 0;
 	}
 
@@ -299,35 +248,30 @@ int AudioPlaySdAac::play(const char *filename){
 		return lastError;
 	}
 
-	init_interrupt();
-	
-	_VectorsRam[IRQ_AUDIOCODEC + 16] = decode;
-	NVIC_SET_PRIORITY(IRQ_AUDIOCODEC, IRQ_AUDIOCODEC_PRIO);
-	NVIC_ENABLE_IRQ(IRQ_AUDIOCODEC);
+	_VectorsRam[IRQ_AUDIOCODEC + 16] = &decodeAac;
+	initSwi();
 
 	decoded_length[0] = 0;
 	decoded_length[1] = 0;
 	decoding_state = 0;
 	decoding_block = 0;
-	
-	play_pos = 0;
-	samples_played = 0;
 
-	decode_cycles_max_sd = 0;
-	decode_cycles_max = 0;
+	for (int i=0; i< DECODE_NUM_STATES; i++) decodeAac();
 
-	for (int i=0; i< DECODE_NUM_STATES; i++) decode(); 
-	
 	if((aacFrameInfo.sampRateOut != AUDIOCODECS_SAMPLE_RATE ) || (aacFrameInfo.nChans > 2)) {
 		//Serial.println("incompatible AAC file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
 		return lastError;
 	}
+
 	decoding_block = 1;
 
-	playing = 1;
+	playing = codec_playing;
 	AudioStartUsingSPI();
+#ifdef CODEC_DEBUG
+//	Serial.printf("RAM: %d\r\n",ram-freeRam());
+#endif
     return lastError;
 }
 
@@ -338,23 +282,21 @@ void AudioPlaySdAac::update(void)
 	audio_block_t	*block_right;
 
 	//paused or stopped ?
-	if (0==playing or 2==playing) return;
+	if (playing  != codec_playing) return;
 
 	//chain decoder-interrupt.
 	//to give the user-sketch some cpu-time, only chain
 	//if the swi is not active currently.
 	//In addition, check before if there waits work for it.
 	int db = decoding_block;
-	if (!NVIC_IS_ACTIVE(IRQ_AUDIOCODEC)) 
+	if (!NVIC_IS_ACTIVE(IRQ_AUDIOCODEC))
 		if (decoded_length[db]==0)
 			NVIC_TRIGGER_INTERRUPT(IRQ_AUDIOCODEC);
 
 	//determine the block we're playing from
 	int playing_block = 1 - db;
-	if (decoded_length[playing_block] <= 0) 
+	if (decoded_length[playing_block] <= 0)
 		{
-		//Huston, we have a problem: The decoder was too slow!
-		//best is, we stop the whole track, as we have no chance to play it.
 			stop();
 			return;
 		}
@@ -364,7 +306,7 @@ void AudioPlaySdAac::update(void)
 	if (block_left == NULL) return;
 
 	int pl = play_pos;
-	
+
 	if (aacFrameInfo.nChans == 2) {
 		// if we're playing stereo, allocate another
 		// block for the right channel output
@@ -375,19 +317,19 @@ void AudioPlaySdAac::update(void)
 		}
 
 		memcpy_frominterleaved(block_left->data, block_right->data, buf[playing_block] + pl);
-		
+
 		pl += AUDIO_BLOCK_SAMPLES * 2 ;
 		transmit(block_left, 0);
 		transmit(block_right, 1);
 		release(block_right);
 		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES * 2;
 
-	} else 
+	} else
 	{
 		// if we're playing mono, no right-side block
 		// let's do a (hopefully good optimized) simple memcpy
 		memcpy(block_left->data, buf[playing_block] + pl, AUDIO_BLOCK_SAMPLES * sizeof(short));
-		
+
 		pl += AUDIO_BLOCK_SAMPLES;
 		transmit(block_left, 0);
 		transmit(block_left, 1);
@@ -398,7 +340,7 @@ void AudioPlaySdAac::update(void)
 	samples_played += AUDIO_BLOCK_SAMPLES;
 
 	release(block_left);
-	
+
 	//Switch to the next block if we have no data to play anymore:
 	if ((decoded_length[playing_block] == 0) )
 	{
@@ -410,88 +352,69 @@ void AudioPlaySdAac::update(void)
 }
 
 //decoding-interrupt
-void decode(void)
+void decodeAac(void)
 {
-
-	if (decoded_length[decoding_block]) return; //this block is playing, do NOT fill it
+	AudioPlaySdAac *o = aacobjptr;
+	int db = o->decoding_block;
+	if (o->decoded_length[db]) return; //this block is playing, do NOT fill it
 
 	uint32_t cycles = ARM_DWT_CYCCNT;
 	int eof = false;
-	
-	switch (decoding_state) {
-	
-	case 0: 
-		{
-	
-			sd_left = fillReadBuffer( file, sd_buf, sd_p, sd_left, AAC_SD_BUF_SIZE);
-			if (!sd_left) { eof = true; goto aacend; }
-			sd_p = sd_buf;
 
-			uint32_t cycles_sd = ARM_DWT_CYCCNT - cycles;
-			if (cycles_sd > decode_cycles_max_sd ) decode_cycles_max_sd = cycles_sd;
+	switch (o->decoding_state) {
+
+	case 0:
+		{
+
+			o->sd_left = o->fillReadBuffer( o->file, o->sd_buf, o->sd_p, o->sd_left, AAC_SD_BUF_SIZE);
+			if (!o->sd_left) { eof = true; goto aacend; }
+			o->sd_p = o->sd_buf;
+
+			uint32_t cycles_rd = ARM_DWT_CYCCNT - cycles;
+			if (cycles_rd > o->decode_cycles_max_read ) o->decode_cycles_max_read = cycles_rd;
 			break;
 		}
 
 	case 1:
 		{
-			if (isRAW) {
-			
+			if (o->isRAW) {
+
 				// find start of next AAC frame - assume EOF if no sync found
-				int offset = AACFindSyncWord(sd_p, sd_left);
+				int offset = AACFindSyncWord(o->sd_p, o->sd_left);
 
 				if (offset < 0) {
-						//Serial.println("No sync"); //no error at end of file
 					eof = true;
 					goto aacend;
 				}
-			
-				sd_p += offset;
-				sd_left -= offset;
-				
+
+				o->sd_p += offset;
+				o->sd_left -= offset;
+
 			}
-			
-			int decode_res = AACDecode(hAACDecoder, &sd_p, (int*)&sd_left, buf[decoding_block]);
+
+			int decode_res = AACDecode(o->hAACDecoder, &o->sd_p, (int*)&o->sd_left, o->buf[db]);
 
 			if (!decode_res) {
-				AACGetLastFrameInfo(hAACDecoder, &aacFrameInfo);
-				decoded_length[decoding_block] = aacFrameInfo.outputSamps;
+				AACGetLastFrameInfo(o->hAACDecoder, &o->aacFrameInfo);
+				o->decoded_length[db] = o->aacFrameInfo.outputSamps;
 			} else {
-				//Serial.print("err:");Serial.println(decode_res);
-				lastError = decode_res;
+				AudioPlaySdAac::lastError = decode_res;
 				eof = true;
 				//goto aacend;
 			}
 
-			if (!isRAW && file.position() > lastChunk) {
-				eof = true;
-			//goto aacend;
-			}
+			//if (!o->isRAW && (o->fposition() > o->lastChunk)) eof = true;
 
 			cycles = ARM_DWT_CYCCNT - cycles;
-			if (cycles > decode_cycles_max ) decode_cycles_max = cycles;
+			if (cycles > o->decode_cycles_max ) o->decode_cycles_max = cycles;
 		}
 	} //switch
-		
+
 aacend:
 
-	decoding_state++;
-	if (decoding_state >= DECODE_NUM_STATES) decoding_state = 0;
+	o->decoding_state++;
+	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
 
-	if (eof) {
-		aacstop();
-	}
+	if (eof) o->stop();
 
-}
-
-void aacstop(void)
-{
-	AudioStopUsingSPI();
-	__disable_irq();
-	playing = 0;
-	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
-	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
-	if (sd_buf) {free(sd_buf);sd_buf = NULL;}
-	if (hAACDecoder) {AACFreeDecoder(hAACDecoder);hAACDecoder=NULL;};
-	__enable_irq();
-	file.close();
 }

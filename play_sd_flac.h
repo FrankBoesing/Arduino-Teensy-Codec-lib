@@ -51,33 +51,20 @@ class AudioPlaySdFlac : public AudioCodec
 {
 public:
 	AudioPlaySdFlac(void){};
-	int play(const char *filename);
-	bool pause(bool paused);
+	//int play(const char *filename);
+	//int play(const size_t p, const size_t size);
 	void stop(void);
-	bool isPlaying(void);
 
-	uint32_t positionMillis(void);
 	uint32_t lengthMillis(void);
-	uint32_t bitrate(void);
-
-	void processorUsageMaxResetDecoder(void);
-	float processorUsageMaxDecoder(void);
-	float processorUsageMaxSD(void);
+	unsigned sampleRate(void);
 
 protected:
-	File		file;
-	uint32_t	samples_played = 0;
-
-	uint16_t	minbuffers = 0;
-	uint16_t 	playing = 0;
-	uint16_t	channels = 0;
 
 	AudioBuffer *audiobuffer;
-
+	uint16_t	minbuffers = 0;
 	static FLAC__StreamDecoder	*hFLACDecoder ;
-	static uint32_t	decode_cycles_max;
-	static uint32_t	decode_cycles_max_sd;
-	static uint32_t	decode_cycles_sd;
+
+	int play(void);
 
 	friend FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data);
 	friend FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data);
@@ -88,7 +75,8 @@ protected:
 	friend void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
 
 	void update(void);
-	friend void decode(void) ;
+	friend void decodeFlac(void) ;
+
 
 //private:
 };

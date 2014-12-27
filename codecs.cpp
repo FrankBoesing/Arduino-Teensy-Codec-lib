@@ -42,19 +42,37 @@
 #include "common/assembly.h"
 #include "SD.h"
 
-int lastError = ERR_CODEC_NONE;
-
-//upgrade original audiointerrupt if needed (hackish...)
-void init_interrupt()
-{	
-	if (NVIC_GET_PRIORITY(IRQ_AUDIO) == 240) {
-		NVIC_SET_PRIORITY(IRQ_AUDIO, 224);
+//__attribute__ ((optimize("O2")))
+inline void readserflash(uint8_t* buffer, const size_t position, const size_t bytes)
+{//flash_spi.h has no such function.
+	digitalWriteFast(SERFLASH_CS, LOW);
+	SPI.transfer(0x0b);//CMD_READ_HIGH_SPEED
+	SPI.transfer((position >> 16) & 0xff);
+	SPI.transfer((position >> 8) & 0xff);
+	SPI.transfer(position & 0xff);
+	SPI.transfer(0);
+	for(unsigned i = 0;i < bytes;i++) {
+		*buffer++ = SPI.transfer(0);
 	}
+	digitalWriteFast(SERFLASH_CS, HIGH);
 }
-	
-// SD-buffer
-size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
+
+size_t CodecFile::fread(uint8_t buffer[],size_t bytes)
 {
+	if (_fposition + bytes > _fsize) bytes = _fsize - _fposition;
+	switch (ftype) {
+		case codec_none : bytes = 0; break;
+		case codec_file : bytes = file.read(buffer, bytes); break;
+		case codec_flash: memcpy(buffer, _fposition + fptr, bytes); break;
+		case codec_serflash: readserflash(buffer, _fposition + offset, bytes); break;
+	}
+	_fposition += bytes;
+	return bytes;
+}
+
+size_t CodecFile::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
+{//TODO: Sync to 512-Byte blocks, if possible
+
 	memmove(sd_buf, data, dataLeft);
 
 	size_t spaceLeft = sd_bufsize - dataLeft;
@@ -62,43 +80,48 @@ size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft
 	size_t n;
 
 	if (spaceLeft>0)
-	{	
-		
-		n = file.read(sd_buf + dataLeft, spaceLeft);
-		dataLeft += n;		
+	{
+
+		n = fread(sd_buf + dataLeft, spaceLeft);
+		dataLeft += n;
 		read +=n;
-		
+
 		if(n < spaceLeft)
 		{ //Rest mit 0 füllen (EOF)
 			memset(sd_buf + dataLeft, 0, sd_bufsize - dataLeft);
 		}
-		
+
 	}
 
 	return read;
 }
+/*
+size_t CodecFile::fillReadBuffer(uint8_t *data, size_t dataLeft)
+{//TODO: Sync to 512-Byte blocks, if possible
 
-//read big endian 16-Bit from fileposition(position)
-uint16_t fread16(File file, size_t position)
-{
-	uint16_t tmp16;
+	memmove(bufptr, data, dataLeft);
 
-	file.seek(position);
-	file.read((uint8_t *) &tmp16, sizeof(tmp16));
-	return REV16(tmp16);
+	size_t spaceLeft = rdbufsize - dataLeft;
+	size_t read = dataLeft;
+	size_t n;
 
+	if (spaceLeft>0)
+	{
+
+		n = fread(bufptr + dataLeft, spaceLeft);
+		dataLeft += n;
+		read +=n;
+
+		if(n < spaceLeft)
+		{ //Rest mit 0 füllen (EOF)
+			memset(bufptr + dataLeft, 0, rdbufsize - dataLeft);
+		}
+
+	}
+
+	return read;
 }
-
-//read big endian 32-Bit from fileposition(position)
-uint32_t fread32(File file, size_t position)
-{
-	uint32_t tmp32;
-
-	file.seek(position);
-	file.read((uint8_t *) &tmp32, sizeof(tmp32));
-	return REV32(tmp32);
-
-}
+*/
 
 //Skip ID3-Tags at the beginning of the file.
 //http://id3.org/id3v2.4.0-structure
@@ -120,8 +143,32 @@ size_t skipID3(uint8_t *sd_buf)
 	else return 0;
 }
 
-int	AudioCodec::getLastError(void)
+
+bool AudioCodec::pause(const bool paused)
 {
-	return lastError;
+	if (playing == codec_playing) {
+		if (paused) playing = codec_paused;
+		else playing = codec_playing;
+	}
+	return (playing == codec_paused);
 }
+
+/** Return the number of bytes currently free in RAM. */
+/** from Fat16util.h 2008 by William Greiman**/
+int AudioCodec::freeRam(void) {
+  extern int  __bss_end;
+  extern int* __brkval;
+  int free_memory;
+  if (reinterpret_cast<int>(__brkval) == 0) {
+    // if no heap use from end of bss section
+    free_memory = reinterpret_cast<int>(&free_memory)
+                  - reinterpret_cast<int>(&__bss_end);
+  } else {
+    // use from top of stack to heap
+    free_memory = reinterpret_cast<int>(&free_memory)
+                  - reinterpret_cast<int>(__brkval);
+  }
+  return free_memory;
+}
+
 
