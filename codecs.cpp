@@ -42,6 +42,13 @@
 #include "common/assembly.h"
 #include "SD.h"
 
+#if TEENSYDUINO < 121
+__attribute__ ((optimize("O3")))
+void memcpy_frominterleaved(short *dst1, short *dst2, short *src) {
+	for (int i=0;i<128;i++) {*dst1++=*src++;*dst2++=*src++;}
+}
+#endif
+
 //__attribute__ ((optimize("O2")))
 inline void readserflash(uint8_t* buffer, const size_t position, const size_t bytes)
 {//flash_spi.h has no such function.

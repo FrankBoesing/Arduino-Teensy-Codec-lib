@@ -67,15 +67,7 @@
 
 #define SERFLASH_CS 				6	//Chip Select W25Q128FV SPI Flash
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-void memcpy_frominterleaved(short *dst1, short *dst2, short *src);
-#ifdef __cplusplus
-}
-#endif
-
-
+extern "C" { void memcpy_frominterleaved(short *dst1, short *dst2, short *src); }
 size_t skipID3(uint8_t *sd_buf);
 
 enum codec_filetype {codec_none, codec_file, codec_flash, codec_serflash};
