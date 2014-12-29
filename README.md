@@ -10,6 +10,7 @@ with only 48MHz.
 
 planned:
  - OPUS decoder (new codec, the best so far. Great Specs.)
+   http://opus-codec.org/comparison/
  - streaming audio
 
  HINT: -O2 gives much better performance
