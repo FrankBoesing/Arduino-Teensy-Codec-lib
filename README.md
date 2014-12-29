@@ -9,6 +9,7 @@ with only 48MHz.
 - Flac 4-24 BIT, Blocksize 128-1024 Bytes
 
 planned:
+ - OPUS decoder (new codec, the best so far. Great Specs.)
  - streaming audio
 
  HINT: -O2 gives much better performance
