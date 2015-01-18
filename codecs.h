@@ -77,10 +77,17 @@ class CodecFile
 {
 public:
 
-	bool fopen(const char *filename) {ftype=codec_file; fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
+	bool fopen(const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
-	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; flash_init(); return true;} //SERIAL FLASH
-	void fclose(void) {_fsize=_fposition=0; fptr=NULL; if (ftype==codec_file) file.close(); ftype=codec_none;}
+	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); flash_init(); return true;} //SERIAL FLASH
+	void fclose(void) 
+	{
+		_fsize=_fposition=0; fptr=NULL; 
+		if (ftype==codec_file) {file.close(); AudioStopUsingSPI();}
+		else
+		if (ftype==codec_serflash) {AudioStopUsingSPI();}
+		ftype=codec_none;
+	}
 	bool f_eof(void) {return _fposition >= _fsize;}
 	bool fseek(const size_t position) {_fposition=position;if (ftype==codec_file) return file.seek(_fposition)!=0; else return _fposition <= _fsize;}
 	size_t fposition(void) {return _fposition;}
@@ -102,13 +109,12 @@ protected:
 		uint8_t* fptr;
 		size_t offset;
 	};
-
+		
 	size_t _fsize;
 	size_t _fposition;
 
 	uint8_t* bufptr;
 	size_t rdbufsize;
-
 };
 
 class AudioCodec : public AudioStream, protected CodecFile

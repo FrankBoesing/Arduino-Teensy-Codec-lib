@@ -57,7 +57,7 @@ void AudioPlaySdFlac::stop(void)
 {
 
 	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	AudioStopUsingSPI();
+	
 	playing = codec_stopped;
 
 	delete audiobuffer;
@@ -149,7 +149,6 @@ int AudioPlaySdFlac::play(void)
 #endif
 
 	playing = codec_playing;
-	AudioStartUsingSPI();
 
     return lastError;
 

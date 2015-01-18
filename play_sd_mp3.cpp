@@ -57,13 +57,12 @@ void decodeMp3(void);
 void AudioPlaySdMp3::stop(void)
 {
 	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	AudioStopUsingSPI();
 	playing = codec_stopped;
 	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
 	freeBuffer();
 	if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
-	file.close();
+	fclose();
 }
 /*
 float AudioPlaySdMp3::processorUsageMaxDecoder(void){
@@ -85,7 +84,7 @@ int AudioPlaySdMp3::play(void)
 {
 	lastError = ERR_CODEC_NONE;
 	initVars();
-	//sd_buf = (uint8_t *) malloc(MP3_SD_BUF_SIZE);
+
 	sd_buf = allocBuffer(MP3_SD_BUF_SIZE);
 	if (!sd_buf) return ERR_CODEC_OUT_OF_MEMORY;
 
@@ -104,7 +103,7 @@ int AudioPlaySdMp3::play(void)
 	}
 
 	//Read-ahead 10 Bytes to detect ID3
-	sd_left = fread(sd_buf, 10);
+	sd_left =  fread(sd_buf, 10);
 
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf);
@@ -149,7 +148,7 @@ int AudioPlaySdMp3::play(void)
 	decoding_block = 1;
 
 	playing = codec_playing;
-	AudioStartUsingSPI();
+
 #ifdef CODEC_DEBUG
 //	Serial.printf("RAM: %d\r\n",ram-freeRam());
 
@@ -195,7 +194,7 @@ void AudioPlaySdMp3::update(void)
 			return;
 		}
 
-		memcpy_frominterleaved(block_left->data, block_right->data, buf[playing_block] + pl);
+		memcpy_frominterleaved(&block_left->data[0], &block_right->data[0], buf[playing_block] + pl);
 
 		pl += AUDIO_BLOCK_SAMPLES * 2;
 		transmit(block_left, 0);

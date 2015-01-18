@@ -57,7 +57,7 @@ void decodeAac(void);
 void AudioPlaySdAac::stop(void)
 {
 	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	AudioStopUsingSPI();
+
 	playing = codec_stopped;
 	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
@@ -268,7 +268,7 @@ int AudioPlaySdAac::play(void){
 	decoding_block = 1;
 
 	playing = codec_playing;
-	AudioStartUsingSPI();
+	
 #ifdef CODEC_DEBUG
 //	Serial.printf("RAM: %d\r\n",ram-freeRam());
 #endif
