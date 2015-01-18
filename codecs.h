@@ -46,7 +46,6 @@
 #include <AudioStream.h>
 #include <spi_interrupt.h>
 #include <SD.h>
-#include <flash_spi.h>
 
 #define ERR_CODEC_NONE				0
 #define ERR_CODEC_FILE_NOT_FOUND    1
@@ -66,6 +65,7 @@
 #define PATCH_PRIO 			{if (NVIC_GET_PRIORITY(IRQ_AUDIO) == IRQ_AUDIOCODEC_PRIO) {NVIC_SET_PRIORITY(IRQ_AUDIO, IRQ_AUDIOCODEC_PRIO-16);}}
 
 #define SERFLASH_CS 				6	//Chip Select W25Q128FV SPI Flash
+#define SPICLOCK 			30000000
 
 extern "C" { void memcpy_frominterleaved(short *dst1, short *dst2, short *src); }
 size_t skipID3(uint8_t *sd_buf);
@@ -79,10 +79,10 @@ public:
 
 	bool fopen(const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
-	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); flash_init(); return true;} //SERIAL FLASH
-	void fclose(void) 
+	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); serflashinit(); return true;} //SERIAL FLASH
+	void fclose(void)
 	{
-		_fsize=_fposition=0; fptr=NULL; 
+		_fsize=_fposition=0; fptr=NULL;
 		if (ftype==codec_file) {file.close(); AudioStopUsingSPI();}
 		else
 		if (ftype==codec_serflash) {AudioStopUsingSPI();}
@@ -102,6 +102,11 @@ public:
 protected:
 //private:
 
+	void serflashinit(void);
+	void readserflash(uint8_t* buffer, const size_t position, const size_t bytes);
+
+	SPISettings spisettings;
+
 	codec_filetype ftype;
 
 	File file;
@@ -109,7 +114,7 @@ protected:
 		uint8_t* fptr;
 		size_t offset;
 	};
-		
+
 	size_t _fsize;
 	size_t _fposition;
 

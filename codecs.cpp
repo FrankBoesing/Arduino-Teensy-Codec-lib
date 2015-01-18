@@ -49,10 +49,23 @@ void memcpy_frominterleaved(short *dst1, short *dst2, short *src) {
 }
 //#endif
 
+void CodecFile::serflashinit(void)
+{
+	pinMode(10,OUTPUT);
+	digitalWrite(10, HIGH);
+	pinMode(SERFLASH_CS,OUTPUT);
+	digitalWrite(SERFLASH_CS, HIGH);
+	SPI.setMOSI(7);
+	SPI.setMISO(12);
+	SPI.setSCK(14);
+	SPI.begin();
+	spisettings = SPISettings(SPICLOCK , MSBFIRST, SPI_MODE0);
+}
 
 //__attribute__ ((optimize("O2")))
-inline void readserflash(uint8_t* buffer, const size_t position, const size_t bytes)
+inline void CodecFile::readserflash(uint8_t* buffer, const size_t position, const size_t bytes)
 {//flash_spi.h has no such function.
+	SPI.beginTransaction(spisettings);
 	digitalWriteFast(SERFLASH_CS, LOW);
 	SPI.transfer(0x0b);//CMD_READ_HIGH_SPEED
 	SPI.transfer((position >> 16) & 0xff);
@@ -63,6 +76,7 @@ inline void readserflash(uint8_t* buffer, const size_t position, const size_t by
 		*buffer++ = SPI.transfer(0);
 	}
 	digitalWriteFast(SERFLASH_CS, HIGH);
+	SPI.endTransaction();
 }
 
 size_t CodecFile::fread(uint8_t buffer[],size_t bytes)
