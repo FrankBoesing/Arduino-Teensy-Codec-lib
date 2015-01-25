@@ -22,7 +22,7 @@
 #include <Wire.h>
 #include <flash_spi.h>
 
-#define FLASHSIZE 16777216
+#define FLASHSIZE 0x1000000
 #define PAGE      256
 #define DIRECTORY "SERFLASH"
 
@@ -33,15 +33,19 @@ File entry;
 unsigned char id_tab[32];
 unsigned pos;
 unsigned page;
-unsigned fsize = 0;
-unsigned fcnt = 0;
+int fsize = 0;
+int fcnt = 0;
 unsigned char buf[PAGE];
-unsigned char buf2[PAGE];
 
+String filename[500];
+unsigned int position[500];
 
 bool verify(void)
 {
-    fcnt = 1;
+
+	unsigned char buf2[PAGE];
+
+    fcnt = 0;
     pos = 0; 
     page = 0;     
     Serial.println("Verify.");
@@ -50,7 +54,9 @@ bool verify(void)
       entry = dir.openNextFile();
       if (!entry) break;
       pos = page * PAGE;
-      Serial.printf("%d. Verifying \"%s\" at Position: 0x%X...", fcnt, entry.name(), pos);
+      Serial.printf("%d. Verifying \"%s\" at position: 0x%07X...", fcnt+1, entry.name(), pos);
+	  filename[fcnt] = entry.name();
+	  position[fcnt] = pos;
       int rd =0;
       do {
         memset(buf, 0xff, PAGE);
@@ -71,7 +77,8 @@ bool verify(void)
 
 void flash(void)
 {
-    fcnt = 1;
+	unsigned char buf[PAGE];
+    fcnt = 0;
     pos = 0; 
     page = 0;     
     dir = SD.open(DIRECTORY);
@@ -79,7 +86,7 @@ void flash(void)
       entry = dir.openNextFile();
       if (!entry) break;
       pos = page * PAGE;
-      Serial.printf("%d. Flashing \"%s\" at Position: 0x%X...", fcnt, entry.name(), pos);
+      Serial.printf("%d. Flashing \"%s\" at position: 0x%07X...", fcnt+1, entry.name(), pos);
       int rd =0;
       do {
         memset(buf, 0xff, PAGE);          
@@ -110,10 +117,10 @@ void setup()
   delay(1000); 
   Serial.print("\r\n\r\nW25Q128FV Serial Flasher \r\nInitializing SD card...");
   if (!SD.begin(10)) {
-    Serial.println("initialization failed!");
+    Serial.println("failed!");
     return;
   }  
-  Serial.println("initialization done.\r\n");
+  Serial.println("done.\r\n");
   dir = SD.open(DIRECTORY);
   fsize = 0;
   fcnt = 0;
@@ -142,7 +149,7 @@ void setup()
       Serial.printf(" is ok.\r\nFile(s) fit(s) in serial flash, %d Bytes remaining.\r\n\r\n", FLASHSIZE - fsize);
 
       Serial.print("Check flash content: ");
-      if (verify()) { Serial.println("Nothing to do.");goto end; }
+      if (verify()) { Serial.println("Flash content ok. Nothing to do.");goto end; }
 
       erase();
       flash();      
@@ -155,8 +162,42 @@ end:
   
 ready:  
   Serial.println("Ready.");
+  if (fsize) { 
+	Serial.printf("Copy'n paste:\r\n\r\nconst int SPIFlash[%d] = {\r\n",fcnt);
+	for (int i = 0; i<fcnt; i++) 
+		Serial.printf("\t\t0x%07X%s //\"%s\"\r\n",position[i], ((i<fcnt-1)?", ":"};"), filename[i].c_str());
+	
+	
+	Serial.printf("\r\nconst char SPIFlashFilename[%d][13] = {\r\n",fcnt);
+	for (int i = 0; i<fcnt; i++) 
+		Serial.printf("\t\t\"%s\"%s\r\n", filename[i].c_str(),((i<fcnt-1)?",":"};"));	
+  }
+  
 }
+
+
+
+const int SPIFlash[7] = {
+                0x0000000,  //"201159~1.RAW"
+                0x002C800,  //"82583_~1.RAW"
+                0x0053300,  //"86334_~1.RAW"
+                0x0065B00,  //"86773_~1.RAW"
+                0x01F1D00,  //"102790~1.RAW"
+                0x020A100,  //"171104~1.RAW"
+                0x0214900}; //"P2.RAW"
+
+const char SPIFlashFilename[7][13] = {
+                "201159~1.RAW",
+                "82583_~1.RAW",
+                "86334_~1.RAW",
+                "86773_~1.RAW",
+                "102790~1.RAW",
+                "171104~1.RAW",
+                "P2.RAW"};
+
 
 
 void loop()
 {}
+
+
