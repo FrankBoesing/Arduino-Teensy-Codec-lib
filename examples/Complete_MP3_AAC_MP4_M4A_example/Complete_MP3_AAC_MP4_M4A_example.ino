@@ -6,7 +6,7 @@
 //
 // Example sketch by Dnstje.nl
 // Act like a real MP3/AAC player up to 255 songs.
-// Buttons at port 14 15 16, feel free to remap them.
+// Buttons at port 2 3 4, feel free to remap them.
 // I don't have a Audioboard yet, just a SDcard breakout and using the onboard DAC and PWM outputs.
 //
 // This sketch will also using: EEPROM, Bounce library, Serial, SD.
@@ -32,9 +32,9 @@
 #include <play_sd_mp3.h> //mp3 decoder
 #include <play_sd_aac.h> // AAC decoder
 
-#define BUTTON1 15  //NEXT
-#define BUTTON2 14  //Play Pause
-#define BUTTON3 16  //PREV 
+#define BUTTON1 2  //NEXT
+#define BUTTON2 3  //Play Pause
+#define BUTTON3 4  //PREV 
 
 Bounce bouncer1 = Bounce(BUTTON1, 50); 
 Bounce bouncer2 = Bounce(BUTTON2, 50); 

@@ -168,10 +168,9 @@ size_t skipID3(uint8_t *sd_buf)
 
 bool AudioCodec::pause(const bool paused)
 {
-	if (playing == codec_playing) {
-		if (paused) playing = codec_paused;
-		else playing = codec_playing;
-	}
+	if (paused) playing = codec_paused;
+	else
+	playing = codec_playing;
 	return (playing == codec_paused);
 }
 
