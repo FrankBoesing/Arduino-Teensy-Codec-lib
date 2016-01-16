@@ -65,15 +65,18 @@
  *
  * Notes:       slow, platform-independent equivalent to memset(buf, 0, nBytes)
  **************************************************************************************/
-void ClearBuffer(void *buf, int nBytes)
+#include <string.h>
+ void ClearBuffer(void *buf, int nBytes)
 {
-	int i;
+/*	int i;
 	unsigned char *cbuf = (unsigned char *)buf;
 
 	for (i = 0; i < nBytes; i++)
 		cbuf[i] = 0;
 
 	return;
+	*/
+	memset(buf, 0, nBytes);
 }
 
 /**************************************************************************************
