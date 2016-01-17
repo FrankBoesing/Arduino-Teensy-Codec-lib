@@ -1,7 +1,7 @@
 /*
 	Helix library Arduino interface
 
-	Copyright (c) 2014 Frank Bösing
+	Copyright (c) 2014-2016 Frank Bösing
 
 	This library is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@
 	@ r1: dst2
 	@ r2: src
 
-	push	{r3-r12,r14}
+	push	{r4-r12,r14}
 	mov r14, #4 - 1
 	.align 2
 .loop:
@@ -85,7 +85,7 @@
 	subs r14, #1
 	bhs .loop
 
-	pop	{r3-r12,r14}
+	pop	{r4-r12,r14}
 
 	BX lr
 .END
