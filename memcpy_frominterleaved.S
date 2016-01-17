@@ -54,7 +54,7 @@
 	@ r1: dst2
 	@ r2: src
 
-	push	{r4-r12,r14}
+	push	{r4-r11,r14}
 	mov r14, #4 - 1
 	.align 2
 .loop:
@@ -85,7 +85,7 @@
 	subs r14, #1
 	bhs .loop
 
-	pop	{r4-r12,r14}
+	pop	{r4-r11,r14}
 
 	BX lr
 .END
