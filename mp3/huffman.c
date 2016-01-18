@@ -322,8 +322,12 @@ static int DecodeHuffmanQuads(int *vwxy, int nVals, int tabIdx, int bitsLeft, un
 		/* refill cache - assumes cachedBits <= 16 */
 		if (bitsLeft >= 16) {
 			/* load 2 new bytes into left-justified cache */
-			cache |= (unsigned int)(*buf++) << (24 - cachedBits);
-			cache |= (unsigned int)(*buf++) << (16 - cachedBits);
+			//New (FB)
+			cache |= (REV16((unsigned int) * ((uint16_t*)buf))) << (16 - cachedBits);
+			buf += 2;
+			//Old (FB)
+			//cache |= (unsigned int)(*buf++) << (24 - cachedBits);
+			//cache |= (unsigned int)(*buf++) << (16 - cachedBits);
 			cachedBits += 16;
 			bitsLeft -= 16;
 		} else {
