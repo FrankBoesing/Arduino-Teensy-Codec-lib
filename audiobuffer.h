@@ -37,7 +37,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <audio.h>
+#include <Audio.h>
 
 class AudioBuffer
 {

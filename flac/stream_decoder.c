@@ -56,7 +56,7 @@
 
 //#include "usb_serial.h"
 #include "usb_seremu.h"
-#include "audio.h"
+#include "Audio.h"
 
 
 /* technically this should be in an "export.c" but this is convenient enough */
