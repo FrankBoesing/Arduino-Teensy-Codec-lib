@@ -39,7 +39,7 @@
 #include "codecs.h"
 #include "AudioStream.h"
 #include "spi_interrupt.h"
-#include "flac/all.h"
+#include "FLAC/all.h"
 #include "audiobuffer.h"
 
 #define FLAC_USE_SWI
