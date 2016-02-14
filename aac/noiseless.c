@@ -273,12 +273,14 @@ static int DecodeOneScaleFactor(BitStreamInfo *bsi)
  *
  * Return:      none
  **************************************************************************************/
+static const signed char sgnMask[3] = {0x02,  0x04,  0x08};
+static const signed char negMask[3] = {~0x03, ~0x07, ~0x0f};
+
 static void DecodeTNSInfo(BitStreamInfo *bsi, int winSequence, TNSInfo *ti, signed char *tnsCoef)
 {
 	int i, w, f, coefBits, compress;
 	signed char c, s, n;
-	signed char sgnMask[3] = { 0x02,  0x04,  0x08};
-	signed char negMask[3] = {~0x03, ~0x07, ~0x0f};
+
 	unsigned char *filtLength, *filtOrder, *filtDir;
 
 	filtLength = ti->length;
