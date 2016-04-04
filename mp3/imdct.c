@@ -187,10 +187,11 @@
 {
 	int i, d, mOut;
 	int y0, y1, y2, y3, y4, y5, y6, y7, y8;
-
+	Serial.print("!");
 	if (es == 0) {
 		/* fast case - frequency invert only (no rescaling) - can fuse into overlap-add for speed, if desired */
 		if (blockIdx & 0x01) {
+			Serial.print(".");
 			y += NBANDS;
 			y0 = *y;	y += 2*NBANDS;
 			y1 = *y;	y += 2*NBANDS;
