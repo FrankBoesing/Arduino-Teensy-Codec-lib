@@ -187,11 +187,9 @@
 {
 	int i, d, mOut;
 	int y0, y1, y2, y3, y4, y5, y6, y7, y8;
-	Serial.print("!");
 	if (es == 0) {
 		/* fast case - frequency invert only (no rescaling) - can fuse into overlap-add for speed, if desired */
 		if (blockIdx & 0x01) {
-			Serial.print(".");
 			y += NBANDS;
 			y0 = *y;	y += 2*NBANDS;
 			y1 = *y;	y += 2*NBANDS;
@@ -571,22 +569,7 @@ static __inline void imdct12 (int *x, int *out)
 	 */
 	wp = imdctWin[2];
 	mOut = 0;
-	/*/* fb unrolled loop
-	for (i = 0; i < 3; i++) {
-		yLo = (xPrevWin[ 0+i] << 2);
-		mOut |= FASTABS(yLo);	y[( 0+i)*NBANDS] = yLo;
-		yLo = (xPrevWin[ 3+i] << 2);
-		mOut |= FASTABS(yLo);	y[( 3+i)*NBANDS] = yLo;
-		yLo = (xPrevWin[ 6+i] << 2) + (MULSHIFT32(wp[0+i], xBuf[3+i]));	
-		mOut |= FASTABS(yLo);	y[( 6+i)*NBANDS] = yLo;
-		yLo = (xPrevWin[ 9+i] << 2) + (MULSHIFT32(wp[3+i], xBuf[5-i]));	
-		mOut |= FASTABS(yLo);	y[( 9+i)*NBANDS] = yLo;
-		yLo = (xPrevWin[12+i] << 2) + (MULSHIFT32(wp[6+i], xBuf[2-i]) + MULSHIFT32(wp[0+i], xBuf[(6+3)+i]));	
-		mOut |= FASTABS(yLo);	y[(12+i)*NBANDS] = yLo;
-		yLo = (xPrevWin[15+i] << 2) + (MULSHIFT32(wp[9+i], xBuf[0+i]) + MULSHIFT32(wp[3+i], xBuf[(6+5)-i]));	
-		mOut |= FASTABS(yLo);	y[(15+i)*NBANDS] = yLo;
-	}
-	*/
+
 	 i = 0; 
 		yLo = (xPrevWin[ 0+i] << 2);
 		mOut |= FASTABS(yLo);	y[( 0+i)*NBANDS] = yLo;
