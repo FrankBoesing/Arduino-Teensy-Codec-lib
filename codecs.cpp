@@ -44,10 +44,12 @@
 
 void CodecFile::serflashinit(void)
 {
+#if 0
 	pinMode(10,OUTPUT);
 	digitalWrite(10, HIGH);
 	pinMode(SERFLASH_CS,OUTPUT);
 	digitalWrite(SERFLASH_CS, HIGH);
+#endif	
 	SPI.setMOSI(7);
 	SPI.setMISO(12);
 	SPI.setSCK(14);
