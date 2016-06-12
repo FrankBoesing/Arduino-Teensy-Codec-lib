@@ -36,7 +36,7 @@
 
  */
 
-#ifndef __MK20DX256__
+#if !defined(__MK20DX256__) && !defined(__MK64FX512__) && !defined(__MK66FX1M0__)
 #error	This platform is not supported.
 #endif
 
