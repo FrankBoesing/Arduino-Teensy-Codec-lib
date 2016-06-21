@@ -50,9 +50,10 @@
 class AudioPlaySdFlac : public AudioCodec
 {
 public:
-	AudioPlaySdFlac(void){};
-	//int play(const char *filename);
-	//int play(const size_t p, const size_t size);
+	//AudioPlaySdFlac(void){};
+	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	void stop(void);
 
 	uint32_t lengthMillis(void);
