@@ -53,7 +53,7 @@
 #define ERR_CODEC_FORMAT			3	//File is not 44.1 KHz, 16Bit mono or stereo
 
 #define IRQ_AUDIO			IRQ_SOFTWARE	// see AudioStream.cpp
-#define IRQ_AUDIOCODEC		56				// use a "reserved" (free) interrupt vector
+#define IRQ_AUDIOCODEC		55				// use a "reserved" (free) interrupt vector
 #define IRQ_AUDIOCODEC_PRIO	240				// lowest priority
 
 #define AUDIOCODECS_SAMPLE_RATE			(((int)(AUDIO_SAMPLE_RATE / 100)) * 100) //44100
