@@ -6,7 +6,7 @@ with only 48MHz.
 
 - Optimized for ARM Thumb2.
 - Play from SD, built-in Flash or optional serial Flash (with audio-shield)
-- Flac 4-24 BIT, Blocksize 128-1024 Bytes
+- Flac 4-24 BIT, (Teensy <= 3.2: Blocksize 128-1024 Bytes)
 
 planned:
  - OPUS decoder (new codec, the best so far. Great Specs.)
