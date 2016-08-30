@@ -49,10 +49,11 @@ void CodecFile::serflashinit(void)
 	digitalWrite(10, HIGH);
 	pinMode(SERFLASH_CS,OUTPUT);
 	digitalWrite(SERFLASH_CS, HIGH);
-#endif	
+
 	SPI.setMOSI(7);
 	SPI.setMISO(12);
 	SPI.setSCK(14);
+#endif		
 	SPI.begin();
 	spisettings = SPISettings(SPICLOCK , MSBFIRST, SPI_MODE0);
 }
