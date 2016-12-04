@@ -36,6 +36,12 @@
 
  */
 
+#if TEENSYDUINO>132
+#include <AudioStream.h>
+#else
+#define AUDIO_BLOCK_SAMPLES 128
+#endif 
+ 
 //Fast copy decoded data (interleaved LRLRLR) to the two audiobuffers (LLL, RRR)
 
  .cpu cortex-m4
@@ -55,7 +61,7 @@
 	@ r2: src
 
 	push	{r4-r11,r14}
-	mov r14, #4 - 1
+	add r14,r0,#AUDIO_BLOCK_SAMPLES * 2
 	.align 2
 .loop:
 
@@ -82,8 +88,8 @@
 
 	.endr
 
-	subs r14, #1
-	bhs .loop
+	cmp r14, r0
+	bne .loop	
 
 	pop	{r4-r11,r14}
 
