@@ -1,4 +1,4 @@
-// Simple WAV file player example
+// Simple MP3 player example
 //
 // Requires the audio shield:
 //   http://www.pjrc.com/store/teensy3_audio.html
