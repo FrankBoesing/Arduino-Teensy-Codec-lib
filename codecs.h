@@ -36,13 +36,14 @@
 
  */
 
-#if !defined(__MK20DX256__) && !defined(__MK64FX512__) && !defined(__MK66FX1M0__)
+#if !defined(__MK20DX256__) && !defined(__MK64FX512__) && !defined(__MK66FX1M0__) && !defined(__IMXRT1052__) && !defined(__IMXRT1062__)
 #error	This platform is not supported.
 #endif
 
 #ifndef codecs_h_
 #define codecs_h_
 
+#include <Arduino.h>
 #include <AudioStream.h>
 #include <spi_interrupt.h>
 #include <SD.h>
@@ -53,7 +54,13 @@
 #define ERR_CODEC_FORMAT			3	//File is not 44.1 KHz, 16Bit mono or stereo
 
 #define IRQ_AUDIO			IRQ_SOFTWARE	// see AudioStream.cpp
+
+#if defined(__IMXRT1052__) && !defined(__IMXRT1062__)
+#define IRQ_AUDIOCODEC		IRQ_Reserved1
+#else
 #define IRQ_AUDIOCODEC		55				// use a "reserved" (free) interrupt vector
+#endif
+
 #define IRQ_AUDIOCODEC_PRIO	240				// lowest priority
 
 #define AUDIOCODECS_SAMPLE_RATE			(((int)(AUDIO_SAMPLE_RATE / 100)) * 100) //44100
