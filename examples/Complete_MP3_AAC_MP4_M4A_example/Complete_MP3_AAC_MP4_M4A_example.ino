@@ -31,6 +31,7 @@
 
 #include <play_sd_mp3.h> //mp3 decoder
 #include <play_sd_aac.h> // AAC decoder
+#include <codecfile.h> // CodecFile implementation based on SD library
 
 #define BUTTON1 2  //NEXT
 #define BUTTON2 3  //Play Pause

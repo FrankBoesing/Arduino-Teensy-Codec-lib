@@ -15,6 +15,7 @@
 #include <SD.h>
 
 #include <play_sd_aac.h> 
+#include <codecfile.h> // CodecFile implementation based on SD library
 #include "enterauthorizationcode.h"
 
 

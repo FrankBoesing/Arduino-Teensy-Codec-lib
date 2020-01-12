@@ -40,55 +40,6 @@
 #include "codecs.h"
 
 #include "common/assembly.h"
-#include "SD.h"
-
-void CodecFile::serflashinit(void)
-{
-#if 0
-	pinMode(10,OUTPUT);
-	digitalWrite(10, HIGH);
-	pinMode(SERFLASH_CS,OUTPUT);
-	digitalWrite(SERFLASH_CS, HIGH);
-
-	SPI.setMOSI(7);
-	SPI.setMISO(12);
-	SPI.setSCK(14);
-#endif		
-	SPI.begin();
-	spisettings = SPISettings(SPICLOCK , MSBFIRST, SPI_MODE0);
-}
-
-//__attribute__ ((optimize("O2")))
-inline void CodecFile::readserflash(uint8_t* buffer, const size_t position, const size_t bytes)
-{//flash_spi.h has no such function.
-	SPI.beginTransaction(spisettings);
-	digitalWriteFast(SERFLASH_CS, LOW);
-	SPI.transfer(0x0b);//CMD_READ_HIGH_SPEED
-	SPI.transfer((position >> 16) & 0xff);
-	SPI.transfer((position >> 8) & 0xff);
-	SPI.transfer(position & 0xff);
-	SPI.transfer(0);
-	for(unsigned i = 0;i < bytes;i++) {
-		*buffer++ = SPI.transfer(0);
-	}
-	digitalWriteFast(SERFLASH_CS, HIGH);
-	SPI.endTransaction();
-}
-
-size_t CodecFile::fread(uint8_t buffer[],size_t bytes)
-{
-	if (_fposition + bytes > _fsize) bytes = _fsize - _fposition;
-	switch (ftype) {
-		case codec_none : bytes = 0; break;
-		case codec_file : bytes = file.read(buffer, bytes); break;
-		case codec_flash: memcpy(buffer, _fposition + fptr, bytes); break;
-		case codec_serflash: readserflash(buffer, _fposition + offset, bytes); break;
-	}
-	_fposition += bytes;
-	return bytes;
-}
-
-
 
 //Skip ID3-Tags at the beginning of the file.
 //http://id3.org/id3v2.4.0-structure

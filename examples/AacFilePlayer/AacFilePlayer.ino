@@ -11,6 +11,7 @@
 #include <SD.h>
 
 #include <play_sd_aac.h> 
+#include <codecfile.h> // CodecFile implementation based on SD library
 
 // GUItool: begin automatically generated code
 AudioPlaySdAac           playAac1;       //xy=154,78

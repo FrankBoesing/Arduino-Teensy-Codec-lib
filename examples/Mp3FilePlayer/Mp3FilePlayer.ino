@@ -11,7 +11,7 @@
 #include <SD.h>
 
 #include <play_sd_mp3.h>
-
+#include <codecfile.h> // CodecFile implementation based on SD library
 
 // GUItool: begin automatically generated code
 AudioPlaySdMp3           playMp31;       //xy=154,78

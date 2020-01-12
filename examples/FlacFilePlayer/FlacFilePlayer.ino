@@ -11,7 +11,7 @@
 #include <SD.h>
 
 #include <play_sd_flac.h>
-
+#include <codecfile.h> // CodecFile implementation based on SD library
 
 // GUItool: begin automatically generated code
 AudioPlaySdFlac           playFlac1;       //xy=154,78
