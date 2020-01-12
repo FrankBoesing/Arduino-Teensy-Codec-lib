@@ -168,8 +168,14 @@ void playFileMP3(const char *filename)
   // Start playing the file.  This sketch continues to
   // run while the file plays.
   EEPROM.write(0,track); //meanwhile write the track position to eeprom address 0
-  playMp31.play(filename);
 
+  CodecFile file;
+  if(!file.fopen(filename)){
+    Serial.println("file not found");
+    return;
+  }
+
+  playMp31.play(&file);
 
   // Simply wait for the file to finish playing.
   while (playMp31.isPlaying()) {
@@ -177,6 +183,7 @@ void playFileMP3(const char *filename)
     controls();
     serialcontrols();
   }
+  file.fclose();
 }
 
 void playFileAAC(const char *filename)
@@ -189,8 +196,14 @@ void playFileAAC(const char *filename)
   // Start playing the file.  This sketch continues to
   // run while the file plays.
   EEPROM.write(0,track); //meanwhile write the track position to eeprom address 0
-  playAac1.play(filename);
 
+  CodecFile file;
+  if(!file.fopen(filename)){
+    Serial.println("file not found");
+    return;
+  }
+
+  playAac1.play(&file);
 
   // Simply wait for the file to finish playing.
   while (playAac1.isPlaying()) {
@@ -198,6 +211,7 @@ void playFileAAC(const char *filename)
     controls();
     serialcontrols();
   }
+  file.fclose();
 }
 
 void controls() {

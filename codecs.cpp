@@ -110,7 +110,7 @@ size_t skipID3(uint8_t *sd_buf)
 	else return 0;
 }
 
-size_t AudioCodec::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
+size_t AudioCodec::fillReadBuffer(uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
 {//TODO: Sync to 512-Byte blocks, if possible
 
 	memmove(sd_buf, data, dataLeft);

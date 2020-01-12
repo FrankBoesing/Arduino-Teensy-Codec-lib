@@ -49,7 +49,13 @@ void playFile(const char *filename)
 
 	// Start playing the file.  This sketch continues to
 	// run while the file plays.
-	playAac1.play(filename);
+  CodecFile file;
+  if(!file.fopen(filename)){
+    Serial.println("file not found");
+    return;
+  }
+
+  playAac1.play(&file);
 
 	// Simply wait for the file to finish playing.
 	while (playAac1.isPlaying()) {
@@ -79,7 +85,7 @@ void playFile(const char *filename)
 
 	delay(200);
   }
-  
+  file.fclose();
 
   
 }

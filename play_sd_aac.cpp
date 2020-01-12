@@ -63,7 +63,6 @@ void AudioPlaySdAac::stop(void)
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
 	freeBuffer();
 	if (hAACDecoder) {AACFreeDecoder(hAACDecoder);hAACDecoder=NULL;};
-	fclose();
 }
 
 uint32_t AudioPlaySdAac::lengthMillis(void)
@@ -240,7 +239,7 @@ int AudioPlaySdAac::play(void){
 	}
 
 	//Fill buffer from the beginning with fresh data
-	sd_left = fillReadBuffer(file, sd_buf, sd_buf, sd_left, AAC_SD_BUF_SIZE);
+	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, AAC_SD_BUF_SIZE);
 
 	if (!sd_left) {
 		lastError = ERR_CODEC_FILE_NOT_FOUND;
@@ -366,7 +365,7 @@ void decodeAac(void)
 	case 0:
 		{
 
-			o->sd_left = o->fillReadBuffer( o->file, o->sd_buf, o->sd_p, o->sd_left, AAC_SD_BUF_SIZE);
+			o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, AAC_SD_BUF_SIZE);
 			if (!o->sd_left) { eof = true; goto aacend; }
 			o->sd_p = o->sd_buf;
 

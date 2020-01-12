@@ -54,10 +54,9 @@ class AudioPlaySdAac : public AudioCodec
 {
 public:
 	//AudioPlaySdAac(void) : AudioStream(0, NULL) {}
-	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	void stop(void);
+	using AudioCodec::play;
+	int play(void);
 
 	uint32_t lengthMillis(void);
 
@@ -81,7 +80,6 @@ protected:
 	HAACDecoder		hAACDecoder;
 	AACFrameInfo	aacFrameInfo;
 
-	int play(void);
 	uint16_t fread16(size_t position);
 	uint32_t fread32(size_t position);
 	void setupDecoder(int channels, int samplerate, int profile);

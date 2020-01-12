@@ -51,10 +51,9 @@ class AudioPlaySdFlac : public AudioCodec
 {
 public:
 	//AudioPlaySdFlac(void){};
-	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	void stop(void);
+	using AudioCodec::play;
+	int play(void);
 
 	uint32_t lengthMillis(void);
 	unsigned sampleRate(void);
@@ -64,8 +63,6 @@ protected:
 	AudioBuffer *audiobuffer;
 	uint16_t	minbuffers = 0;
 	static FLAC__StreamDecoder	*hFLACDecoder ;
-
-	int play(void);
 
 	friend FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data);
 	friend FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data);

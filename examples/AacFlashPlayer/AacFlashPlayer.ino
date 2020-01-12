@@ -44,7 +44,10 @@ void setup() {
 
 void loop() {
   Serial.println("Enter authorization code.\r\n");
-  playAac1.play((uint8_t*)&enterauthorizationcode_data, enterauthorizationcode_data_len);
+  CodecFile file;
+  file.fopen((uint8_t*)&enterauthorizationcode_data, enterauthorizationcode_data_len);
+  playAac1.play(&file);
   while (playAac1.isPlaying()) {;}
+  file.fclose();
   delay(2000);
 }

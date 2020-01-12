@@ -23,6 +23,7 @@ AudioControlSGTL5000     sgtl5000_1;     //xy=240,153
 
 void setup() {
   Serial.begin(9600);
+  while(!Serial);
 
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
@@ -49,7 +50,13 @@ void playFile(const char *filename)
 
   // Start playing the file.  This sketch continues to
   // run while the file plays.
-  playMp31.play(filename);
+  CodecFile file;
+  if(!file.fopen(filename)){
+    Serial.println("file not found");
+    return;
+  }
+
+  playMp31.play(&file);
 
   // Simply wait for the file to finish playing.
   while (playMp31.isPlaying()) {
@@ -79,11 +86,12 @@ void playFile(const char *filename)
 	 
 	 delay(250);
   }
+  file.fclose();
 }
 
 
 void loop() {
-  playFile("ForTag.mp3");	
+  playFile("ForTag.mp3");
   playFile("Tom.mp3");
   playFile("Foreverm.mp3");
   delay(500);

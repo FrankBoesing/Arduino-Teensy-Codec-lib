@@ -68,8 +68,6 @@ void AudioPlaySdFlac::stop(void)
 		FLAC__stream_decoder_delete(hFLACDecoder);
 		hFLACDecoder=NULL;
 	};
-
-	fclose();
 }
 
 

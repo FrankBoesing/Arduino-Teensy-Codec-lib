@@ -85,6 +85,7 @@ enum codec_playstate {codec_stopped, codec_playing, codec_paused};
  */
 class CodecFileBase
 {
+public:
 	virtual bool   f_eof(void);
 	virtual bool   fseek(const size_t position);
 	virtual size_t fposition(void);
@@ -133,13 +134,16 @@ protected:
 	size_t _fposition;
 };
 
-class AudioCodec : public AudioStream, protected CodecFile
+class AudioCodec : public AudioStream
 {
 public:
 
 	AudioCodec(void) : AudioStream(0, NULL) {initVars();}
 
+	int play(CodecFileBase *file) {stop(); currentFile = file; return play();}
 	bool pause(const bool paused);
+	virtual void stop() = 0;
+	virtual int play() = 0;
 	bool isPlaying(void) {return playing > 0;}
 	unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
 	unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
@@ -150,7 +154,7 @@ public:
 
 	uint8_t *allocBuffer(size_t size) { rdbufsize = size;  bufptr = (uint8_t *) calloc(size,1); return bufptr;}
 	void freeBuffer(void){ if (bufptr !=NULL) {free(bufptr);bufptr = NULL; } rdbufsize = 0;}
-	size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
+	size_t fillReadBuffer(uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
 	//size_t fillReadBuffer(uint8_t *data, size_t dataLeft);
 
 	static short	lastError;
@@ -162,6 +166,8 @@ public:
 
 protected:
 
+	CodecFileBase	*currentFile;
+
 	unsigned		samples_played;
 
 	unsigned short	_channels;
@@ -171,6 +177,13 @@ protected:
 
 	void initVars(void) {samples_played=_channels=bitrate=decode_cycles=decode_cycles_read=decode_cycles_max=decode_cycles_max_read = 0;playing=codec_stopped;}
 	void initSwi(void) {PATCH_PRIO;NVIC_SET_PRIORITY(IRQ_AUDIOCODEC, IRQ_AUDIOCODEC_PRIO);NVIC_ENABLE_IRQ(IRQ_AUDIOCODEC);}
+
+	// These are just convenience functions that redirect to the corresponding functions on currentFile
+	bool   f_eof(void) {return currentFile->f_eof();}
+	bool   fseek(const size_t position) {return currentFile->fseek(position);}
+	size_t fposition(void) {return currentFile->fposition();}
+	size_t fsize(void) {return currentFile->fsize();}
+	size_t fread(uint8_t buffer[],size_t bytes) {return currentFile->fread(buffer, bytes);}
 
 	uint8_t* bufptr;
 	size_t rdbufsize;

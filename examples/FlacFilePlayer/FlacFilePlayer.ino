@@ -49,7 +49,9 @@ void playFile(const char *filename)
 
   // Start playing the file.  This sketch continues to
   // run while the file plays.
-  playFlac1.play(filename);
+  CodecFile file;
+  file.fopen(filename);
+  playFlac1.play(&file);
 
   // Simply wait for the file to finish playing.
   while (playFlac1.isPlaying()) {
@@ -66,7 +68,7 @@ void playFile(const char *filename)
 #endif	
 	 delay(200); 
   }
-  
+  file.fclose();
 }
 
 
