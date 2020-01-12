@@ -80,7 +80,19 @@ size_t skipID3(uint8_t *sd_buf);
 enum codec_filetype {codec_none, codec_file, codec_flash, codec_serflash};
 enum codec_playstate {codec_stopped, codec_playing, codec_paused};
 
-class CodecFile
+/**
+ * The CodecFileBase represents an open file. It needs to implement methods to access the file
+ */
+class CodecFileBase
+{
+	virtual bool   f_eof(void);
+	virtual bool   fseek(const size_t position);
+	virtual size_t fposition(void);
+	virtual size_t fsize(void);
+	virtual size_t fread(uint8_t buffer[],size_t bytes);
+};
+
+class CodecFile : public CodecFileBase
 {
 public:
 
@@ -101,11 +113,6 @@ public:
 	size_t fsize(void) {return _fsize;}
 	size_t fread(uint8_t buffer[],size_t bytes);
 
-	uint8_t *allocBuffer(size_t size) { rdbufsize = size;  bufptr = (uint8_t *) calloc(size,1); return bufptr;}
-	void freeBuffer(void){ if (bufptr !=NULL) {free(bufptr);bufptr = NULL; } rdbufsize = 0;}
-	size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
-	//size_t fillReadBuffer(uint8_t *data, size_t dataLeft);
-
 protected:
 //private:
 
@@ -124,9 +131,6 @@ protected:
 
 	size_t _fsize;
 	size_t _fposition;
-
-	uint8_t* bufptr;
-	size_t rdbufsize;
 };
 
 class AudioCodec : public AudioStream, protected CodecFile
@@ -134,6 +138,7 @@ class AudioCodec : public AudioStream, protected CodecFile
 public:
 
 	AudioCodec(void) : AudioStream(0, NULL) {initVars();}
+
 	bool pause(const bool paused);
 	bool isPlaying(void) {return playing > 0;}
 	unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
@@ -142,6 +147,11 @@ public:
 	int bitRate(void) {return bitrate;}
 	void processorUsageMaxResetDecoder(void){__disable_irq();decode_cycles_max = decode_cycles_max_read = 0;__enable_irq();}
 	int freeRam(void);
+
+	uint8_t *allocBuffer(size_t size) { rdbufsize = size;  bufptr = (uint8_t *) calloc(size,1); return bufptr;}
+	void freeBuffer(void){ if (bufptr !=NULL) {free(bufptr);bufptr = NULL; } rdbufsize = 0;}
+	size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
+	//size_t fillReadBuffer(uint8_t *data, size_t dataLeft);
 
 	static short	lastError;
 
@@ -162,6 +172,8 @@ protected:
 	void initVars(void) {samples_played=_channels=bitrate=decode_cycles=decode_cycles_read=decode_cycles_max=decode_cycles_max_read = 0;playing=codec_stopped;}
 	void initSwi(void) {PATCH_PRIO;NVIC_SET_PRIORITY(IRQ_AUDIOCODEC, IRQ_AUDIOCODEC_PRIO);NVIC_ENABLE_IRQ(IRQ_AUDIOCODEC);}
 
+	uint8_t* bufptr;
+	size_t rdbufsize;
 };
 
 #endif

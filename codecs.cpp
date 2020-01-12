@@ -88,7 +88,29 @@ size_t CodecFile::fread(uint8_t buffer[],size_t bytes)
 	return bytes;
 }
 
-size_t CodecFile::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
+
+
+//Skip ID3-Tags at the beginning of the file.
+//http://id3.org/id3v2.4.0-structure
+size_t skipID3(uint8_t *sd_buf)
+{
+	if (sd_buf[0]=='I' && sd_buf[1]=='D' && sd_buf[2]=='3' &&
+		sd_buf[3]<0xff && sd_buf[4]<0xff &&
+		sd_buf[6]<0x80 && sd_buf[7]<0x80 &&
+		sd_buf[8]<0x80 && sd_buf[9]<0x80)
+	{
+		// bytes 6-9:offset of maindata, with bit.7=0:
+		int ofs =	((sd_buf[6] & 0x7f) << 21) |
+				((sd_buf[7] & 0x7f) << 14) |
+				((sd_buf[8] & 0x7f) <<  7) |
+				 (sd_buf[9] & 0x7f);
+	    return ofs;
+
+	}
+	else return 0;
+}
+
+size_t AudioCodec::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
 {//TODO: Sync to 512-Byte blocks, if possible
 
 	memmove(sd_buf, data, dataLeft);
@@ -114,7 +136,7 @@ size_t CodecFile::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size
 	return read;
 }
 /*
-size_t CodecFile::fillReadBuffer(uint8_t *data, size_t dataLeft)
+size_t AudioCodec::fillReadBuffer(uint8_t *data, size_t dataLeft)
 {//TODO: Sync to 512-Byte blocks, if possible
 
 	memmove(bufptr, data, dataLeft);
@@ -140,27 +162,6 @@ size_t CodecFile::fillReadBuffer(uint8_t *data, size_t dataLeft)
 	return read;
 }
 */
-
-//Skip ID3-Tags at the beginning of the file.
-//http://id3.org/id3v2.4.0-structure
-size_t skipID3(uint8_t *sd_buf)
-{
-	if (sd_buf[0]=='I' && sd_buf[1]=='D' && sd_buf[2]=='3' &&
-		sd_buf[3]<0xff && sd_buf[4]<0xff &&
-		sd_buf[6]<0x80 && sd_buf[7]<0x80 &&
-		sd_buf[8]<0x80 && sd_buf[9]<0x80)
-	{
-		// bytes 6-9:offset of maindata, with bit.7=0:
-		int ofs =	((sd_buf[6] & 0x7f) << 21) |
-				((sd_buf[7] & 0x7f) << 14) |
-				((sd_buf[8] & 0x7f) <<  7) |
-				 (sd_buf[9] & 0x7f);
-	    return ofs;
-
-	}
-	else return 0;
-}
-
 
 bool AudioCodec::pause(const bool paused)
 {
