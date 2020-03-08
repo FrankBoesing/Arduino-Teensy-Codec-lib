@@ -54,6 +54,17 @@ enum ogg_codec {
   OGG_CODECS,
 };
 
+enum read_packet_result {
+  READ_PACKET_COMPLETE = 0,
+  READ_PACKET_INCOMPLETE = 1,
+  READ_PACKET_FAIL = 2,
+};
+
+enum read_packet_outbuf_full_action {
+  READ_PACKET_REWIND = 0, // return READ_PACKET_FAIL and rewind back to beginning of packet
+  READ_PACKET_HOLDPOS = 1, // return READ_PACKET_INCOMPLETE and advance read cursor so the next read continues this read
+};
+
 // low-memory optimized single-stream ogg demuxer. Uses <512B stack + heap memory
 class OggStreamReader : public AudioCodec {
 protected:
@@ -82,7 +93,7 @@ protected:
   }
     
   // return true for success, false for failure
-  bool read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uint32_t *packetsize);
+  read_packet_result read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uint32_t *packetsize, read_packet_outbuf_full_action outbuf_full_action = READ_PACKET_REWIND);
 
   uint16_t current_page_bytes();
 

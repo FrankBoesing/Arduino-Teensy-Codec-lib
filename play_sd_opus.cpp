@@ -117,10 +117,22 @@ int AudioPlaySdOpus::play(void)
 	// second packet contains metadata tags.
 	for(int i = 0; i < 2; i++){
 		uint32_t pktBytes;
-		if(!read_next_packet(bitstream_buf, OPUS_BITSTREAM_BUF_SIZE, &pktBytes)){
-			stop();
-			Serial.println("failed to skip first 2 packets");
-			return ERR_CODEC_FORMAT;
+		while(1){
+			// read headers piece by piece in HOLDPOS mode to handle large metadata (pictures, etc)
+			read_packet_result res = read_next_packet(bitstream_buf, OPUS_BITSTREAM_BUF_SIZE, &pktBytes, READ_PACKET_HOLDPOS);
+			if(res == READ_PACKET_FAIL){
+				stop();
+				Serial.println("failed to skip first 2 packets");
+				return ERR_CODEC_FORMAT;
+			}else if(res == READ_PACKET_COMPLETE){
+				break;
+			}else{
+				//Serial.print("packet ");
+				//Serial.print(i);
+				//Serial.print(" incomplete read ");
+				//Serial.print(pktBytes);
+				//Serial.println(" bytes");
+			}
 		}
 	}
 	
@@ -235,8 +247,8 @@ void decodeOpus(void)
 
 	while(OPUS_DECBUF_SIZE - o->decbuflen >= 1920){
 		uint32_t pktBytes;
-		bool pktReadResult = o->read_next_packet(o->bitstream_buf, OPUS_BITSTREAM_BUF_SIZE, &pktBytes);
-		if(!pktReadResult){
+		read_packet_result pktReadResult = o->read_next_packet(o->bitstream_buf, OPUS_BITSTREAM_BUF_SIZE, &pktBytes);
+		if(pktReadResult != READ_PACKET_COMPLETE){
 			Serial.println("packet read error");
 			o->stop();
 			return;

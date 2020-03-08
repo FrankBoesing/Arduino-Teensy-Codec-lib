@@ -63,7 +63,7 @@ bool OggStreamReader::ogg_reader_init(){
     }
     uint8_t streamhdr[64];
     uint32_t hdrsize = 0;
-    if(!read_next_packet(streamhdr, sizeof(streamhdr), &hdrsize)){
+    if(read_next_packet(streamhdr, sizeof(streamhdr), &hdrsize) != READ_PACKET_COMPLETE){
       return false;
     }
     if(hdrsize < 8){
@@ -247,11 +247,11 @@ bool OggStreamReader::read_next_page(bool verifycrc){
 }
 
 
-bool OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uint32_t *packetsize){
+read_packet_result OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uint32_t *packetsize, read_packet_outbuf_full_action outbuf_full_action){
   if(!pagesync || segmentidx >= pagehdr->nsegments){
     // skip checksum if we already have pagesync to save cpu cycles and avoid the backward seek.
     if(!read_next_page(!pagesync)){
-      return false;
+      return READ_PACKET_FAIL;
     }
   }
   uint64_t oldpagepos = pagepos;
@@ -260,13 +260,26 @@ bool OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uin
   *packetsize = 0;
   uint32_t bytes_to_read = 0;
   bool lastpart = false;
+  bool incomplete = false;
   while(1){
     while(segmentidx < pagehdr->nsegments){
-      uint8_t segsize = pagehdr->segment_sizes[segmentidx++];
-      bytes_to_read += segsize;
-      if(segsize < 255){
-        lastpart = true;
-        break;
+      uint8_t segsize = pagehdr->segment_sizes[segmentidx];
+      if(bytes_to_read + segsize <= outbufsize){
+        // segment fits
+        segmentidx++;
+        bytes_to_read += segsize;
+        if(segsize < 255){
+          lastpart = true;
+          break;
+        }
+      }else{
+        // segment doesn't fit
+        if(outbuf_full_action == READ_PACKET_REWIND){
+          goto restorepos;
+        }else{
+          incomplete = true;
+          break;
+        }
       }
     }
     if(bytes_to_read){
@@ -277,30 +290,34 @@ bool OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uin
       if(!fseek(packetpos)){
         Serial.print("fseek fail\n");
         eof = true;
-        return false;
+        return READ_PACKET_FAIL;
       }
       if(fread(outbuf, bytes_to_read) < bytes_to_read){
         Serial.print("fread read less than needed\n");
         eof = true;
-        return false;
+        return READ_PACKET_FAIL;
       }
       outbuf += bytes_to_read;
       *packetsize += bytes_to_read;
       packetpos += bytes_to_read;
       bytes_to_read = 0;
     }
-    if(lastpart){
+    if(lastpart || incomplete){
       break;
     }
     // packet spans pages. need to get next page and continue
     if(!read_next_page(false)){
-      return false;
+      return READ_PACKET_FAIL;
     }
   }
   //Serial.print("packet is ");
   //Serial.print(*packetsize);
   //Serial.print(" bytes\n");
-  return true;
+  if(incomplete){
+    return READ_PACKET_INCOMPLETE;
+  }else{
+    return READ_PACKET_COMPLETE;
+  }
 
 restorepos:
   // restore previous state
@@ -312,7 +329,7 @@ restorepos:
   }
   segmentidx = oldsegmentidx;
   packetpos = oldpacketpos;
-  return false;
+  return READ_PACKET_FAIL;
 }
 
 uint16_t OggStreamReader::current_page_bytes(){
