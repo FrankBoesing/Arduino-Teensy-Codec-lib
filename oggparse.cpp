@@ -264,6 +264,78 @@ bool OggStreamReader::read_next_page(bool verifycrc){
   return true;
 }
 
+bool OggStreamReader::seekToGranulePos(uint64_t granulePos, uint64_t *landedGranulePos){
+  if(granulePos >= maxgranulepos){
+    return false;
+  }
+  
+  if(!pagesync){
+    if(!read_next_page(true)){
+      return false;
+    }
+  }
+  
+  if(granulePos == pagehdr->granuleposition){
+    *landedGranulePos = pagehdr->granuleposition;
+    read_next_page(false);
+    return true;
+  }
+  
+  uint64_t highPos, highGran, lowPos, lowGran; // bisection search
+  if(granulePos < pagehdr->granuleposition){
+    highPos = pagepos + current_page_bytes();
+    highGran = pagehdr->granuleposition;
+    lowPos = 0;
+    lowGran = 0;
+  }else{
+    highPos = fsize();
+    highGran = maxgranulepos;
+    lowPos = pagepos + current_page_bytes();
+    lowGran = pagehdr->granuleposition;
+  }
+  
+  while(1){
+    // possible integer overflow on files >24 hours
+    Serial.print(" lowPos=");
+    Serial.print((uint32_t)lowPos);
+    Serial.print(" highPos=");
+    Serial.print((uint32_t)highPos);
+    Serial.print(" lowGran=");
+    Serial.print((uint32_t)lowGran);
+    Serial.print(" highGran=");
+    Serial.println((uint32_t)highGran);
+    uint64_t tryOffset = lowPos + (highPos - lowPos) * (granulePos - lowGran) / (highGran - lowGran);
+    Serial.print("tryOffset=");
+    Serial.println((uint32_t)tryOffset);
+    // if tryOffset is close enough, just read ahead and return success
+    if(tryOffset >= pagepos + current_page_bytes() && tryOffset <= pagepos + 1024*1024){
+      uint64_t lastGran;
+      do{
+        lastGran = pagehdr->granuleposition;
+        if(!read_next_page(false)){
+          return false;
+        }
+      }while(pagehdr->granuleposition <= granulePos);
+      *landedGranulePos = lastGran;
+      return true;
+    }
+    
+    if(tryOffset > lowPos + 128 * 1024){
+      tryOffset -= 128* 1024;
+    }else{
+      tryOffset = lowPos;
+    }
+    seekToOffset(tryOffset);
+    
+    if(granulePos < pagehdr->granuleposition){
+      highPos = pagepos + current_page_bytes();
+      highGran = pagehdr->granuleposition;
+    }else{
+      lowPos = pagepos + current_page_bytes();
+      lowGran = pagehdr->granuleposition;
+    }
+  }
+}
 
 read_packet_result OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uint32_t *packetsize, read_packet_outbuf_full_action outbuf_full_action){
   if(!pagesync || segmentidx >= pagehdr->nsegments){

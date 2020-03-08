@@ -147,6 +147,36 @@ int AudioPlaySdOpus::play(void)
     return lastError;
 }
 
+bool AudioPlaySdOpus::seek(uint32_t timesec){
+	if(!isPlaying()){
+		return false;
+	}
+	uint64_t granulePos = (uint64_t)timesec * samplerate;
+	if(granulePos >= maxgranulepos){
+		return false;
+	}
+	pause(true);
+	uint64_t landedGranulePos;
+	bool success = seekToGranulePos(granulePos, &landedGranulePos);
+	if(!success){
+		stop();
+		return false;
+	}
+	
+	samples_played = landedGranulePos;
+	for(int i = 0; i < 2; i++){
+		decoding_block = 1 - decoding_block;
+		decoded_length[decoding_block] = 0;
+		decodeOpus();
+		if(!isPlaying()){
+			// hit error
+			return false;
+		}
+	}
+	pause(false);
+	return true;
+}
+
 
 //runs in ISR
 __attribute__ ((optimize("O2")))

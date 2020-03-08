@@ -77,11 +77,6 @@ protected:
   // allocate buffers and parse the beginning of file to identify streams
   // return true for success, false for failure
   bool ogg_reader_init();
-  
-  // not implemented
-  bool seek(uint32_t timesec){
-    return false;
-  }
 
   uint32_t verify_page_checksum();
 
@@ -94,6 +89,7 @@ protected:
     // do checksum verification in the first page read after seek to be certain we are back in sync
     return read_next_page(true);
   }
+  bool seekToGranulePos(uint64_t granulePos, uint64_t *landedGranulePos);
     
   // return true for success, false for failure
   read_packet_result read_next_packet(uint8_t *outbuf, uint32_t outbufsize, uint32_t *packetsize, read_packet_outbuf_full_action outbuf_full_action = READ_PACKET_REWIND);

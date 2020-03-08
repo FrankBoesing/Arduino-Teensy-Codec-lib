@@ -41,6 +41,7 @@ public:
 	void stop(void);
 	using AudioCodec::play;
 	int play(void);
+	bool seek(uint32_t);
 
 protected:
 
