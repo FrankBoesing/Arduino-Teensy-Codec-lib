@@ -176,7 +176,7 @@ bool OggStreamReader::read_next_page(bool verifycrc){
         while(1){
           oPos = (uint8_t*)memchr(oPos, 'O', bufend - oPos);
           if(oPos == NULL){
-            Serial.print("no more O's in buf\n");
+            //Serial.print("no more O's in buf\n");
             break;
           }
           if(oPos <= bufend - 4){
@@ -185,11 +185,11 @@ bool OggStreamReader::read_next_page(bool verifycrc){
               found = true;
               break;
             }else{
-              Serial.print("found O but not OggS\n");
+              //Serial.print("found O but not OggS\n");
               oPos++;
             }
           }else{
-            Serial.print("found O\n");
+            //Serial.print("found O\n");
             break;
           }
         }
@@ -201,9 +201,9 @@ bool OggStreamReader::read_next_page(bool verifycrc){
           bytes_in_buf = 0;
           pagepos += bufsize;
         }
-        Serial.print("advancing ");
-        Serial.print(bufsize - bytes_in_buf);
-        Serial.print(" bytes\n");
+        //Serial.print("advancing ");
+        //Serial.print(bufsize - bytes_in_buf);
+        //Serial.print(" bytes\n");
       }
     }
     //Serial.print("seeking to ");
@@ -232,7 +232,9 @@ bool OggStreamReader::read_next_page(bool verifycrc){
     
     if(verifycrc && !verify_page_checksum()){
       // crc mismatch
-      return false;
+      pagesync = false;
+      pagepos += 4;
+      continue;
     }
 
     /*
@@ -253,6 +255,9 @@ bool OggStreamReader::read_next_page(bool verifycrc){
     Serial.print(" nseg=");
     Serial.println(pagehdr->nsegments);
     */
+    if(!pagesync){
+      Serial.println("re-acquired sync");
+    }
     pagesync = true;
 
     if(!streamserialvalid || pagehdr->serialno == streamserial){
