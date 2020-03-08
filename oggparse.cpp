@@ -49,11 +49,14 @@ bool OggStreamReader::ogg_reader_init(){
   streamserialvalid = false;
   streamserial = 0;
   codectype = OGG_CODECS;
+  maxgranulepos = 0;
+  eof = false;
   if(!pagehdrbuf){
       pagehdrbuf = (uint8_t*)malloc(sizeof(ogg_page_header) + 255); // big enough for any header
       pagehdr = (ogg_page_header*)pagehdrbuf;
   }
 
+  // go through the BOS (beginning of stream) pages to identify the audio stream
   while(!streamserialvalid){
     if(!read_next_page(true)){
       return false;
@@ -81,14 +84,29 @@ bool OggStreamReader::ogg_reader_init(){
       codectype = OGG_CODEC_OPUS;
     }
   }
-  if(streamserialvalid){
-    // move packetpos back to return the first packet again to user
-    segmentidx = 0;
-    packetpos = pagepos + sizeof(ogg_page_header) + pagehdr->nsegments;
-  }else{
+  
+  if(!streamserialvalid){
     Serial.print("no supported stream found\n");
+    return false;
   }
-  return streamserialvalid;
+  
+  // seek to end of file to find the duration. if it fails, just ignore the error. duration is not critical
+  if(!seekToOffset(fsize() - 65536)){
+    goto success;
+  }
+  
+  maxgranulepos = pagehdr->granuleposition;
+  while(read_next_page(!pagesync)){
+    maxgranulepos = pagehdr->granuleposition;
+  }
+  Serial.print("maxgranulepos ");
+  Serial.println((uint32_t)maxgranulepos);
+  
+success:
+  // move packetpos back to return the first packet again to user
+  eof = false;
+  seekToOffset(0);
+  return true;
 }
 
 uint32_t OggStreamReader::verify_page_checksum(){

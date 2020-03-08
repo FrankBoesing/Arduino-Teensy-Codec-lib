@@ -67,6 +67,9 @@ enum read_packet_outbuf_full_action {
 
 // low-memory optimized single-stream ogg demuxer. Uses <512B stack + heap memory
 class OggStreamReader : public AudioCodec {
+public:
+  // for both vorbis and opus, the granuleposition is the same as PCM sample number
+  uint32_t lengthMillis(void) {return max(samples_played, maxgranulepos) * 1000 / (samplerate ? samplerate : AUDIOCODECS_SAMPLE_RATE);}
 protected:
   // free allocated memory
   void ogg_reader_clear();
@@ -107,6 +110,7 @@ protected:
   bool streamserialvalid = false; // when this is true, we ignore all other streams
   uint32_t streamserial = 0;
   ogg_codec codectype = OGG_CODECS; // codec corresponding to streamserial
+  uint64_t maxgranulepos = 0;
   bool eof = false;
 };
 
