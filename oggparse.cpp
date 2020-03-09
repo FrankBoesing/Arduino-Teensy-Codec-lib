@@ -359,7 +359,7 @@ read_packet_result OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t o
   while(1){
     while(segmentidx < pagehdr->nsegments){
       uint8_t segsize = pagehdr->segment_sizes[segmentidx];
-      if(bytes_to_read + segsize <= outbufsize){
+      if(*packetsize + bytes_to_read + segsize <= outbufsize){
         // segment fits
         segmentidx++;
         bytes_to_read += segsize;
@@ -370,6 +370,7 @@ read_packet_result OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t o
       }else{
         // segment doesn't fit
         if(outbuf_full_action == READ_PACKET_REWIND){
+          Serial.print("buffer too small\n");
           goto restorepos;
         }else{
           incomplete = true;
@@ -378,10 +379,6 @@ read_packet_result OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t o
       }
     }
     if(bytes_to_read){
-      if(bytes_to_read > outbufsize){
-        Serial.print("buffer too small\n");
-        goto restorepos;
-      }
       if(!fseek(packetpos)){
         Serial.print("fseek fail\n");
         eof = true;
