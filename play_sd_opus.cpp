@@ -113,27 +113,16 @@ int AudioPlaySdOpus::play(void)
 
 	play_pos = 0;
 
-	// first packet is a header with channel count, channel mapping, etc. it's only important for multichannel
-	// second packet contains metadata tags.
-	for(int i = 0; i < 2; i++){
-		uint32_t pktBytes;
-		while(1){
-			// read headers piece by piece in HOLDPOS mode to handle large metadata (pictures, etc)
-			read_packet_result res = read_next_packet(bitstream_buf, OPUS_BITSTREAM_BUF_SIZE, &pktBytes, READ_PACKET_HOLDPOS);
-			if(res == READ_PACKET_FAIL){
-				stop();
-				Serial.println("failed to skip first 2 packets");
-				return ERR_CODEC_FORMAT;
-			}else if(res == READ_PACKET_COMPLETE){
-				break;
-			}else{
-				//Serial.print("packet ");
-				//Serial.print(i);
-				//Serial.print(" incomplete read ");
-				//Serial.print(pktBytes);
-				//Serial.println(" bytes");
-			}
-		}
+	if(!parse_opus_header()){
+		stop();
+		Serial.println("failed to parse OpusHead");
+		return ERR_CODEC_FORMAT;
+	}
+	
+	if(!parse_metadata_tags()){
+		stop();
+		Serial.println("failed to parse OpusTags");
+		return ERR_CODEC_FORMAT;
 	}
 	
 	decodeOpus();
@@ -265,6 +254,93 @@ void AudioPlaySdOpus::fill_buf_from_decbuf(void){
 		decbuflen -= samples_to_copy;
 		decoded_length[db] += samples_to_copy;
 	}
+}
+
+bool AudioPlaySdOpus::parse_opus_header(void){
+	uint32_t pktBytes;
+	read_packet_result res = read_next_packet(bitstream_buf, OPUS_BITSTREAM_BUF_SIZE, &pktBytes);
+	if(res != READ_PACKET_COMPLETE){
+		return false;
+	}
+	if(strncmp("OpusHead", (char*)bitstream_buf, 8)){
+		return false;
+	}
+	output_gain = *((int16_t*)(bitstream_buf + 16)) / 256.f;
+	return true;
+}
+
+bool AudioPlaySdOpus::parse_metadata_tags(void){
+	uint32_t readBytes;
+	uint32_t bufCursor = 0;
+	uint32_t bufBytes = 0;
+	read_packet_result readRes;
+	bool firstTime = true;
+	uint32_t bytesToSkip = 0;
+	int numTags = 0;
+	do{
+		readRes = read_next_packet(bitstream_buf + bufBytes, OPUS_BITSTREAM_BUF_SIZE - bufBytes, &readBytes, READ_PACKET_HOLDPOS);
+		if(readRes == READ_PACKET_FAIL){
+			return false;
+		}
+		bufBytes += readBytes;
+		if(bytesToSkip){
+			uint32_t skip = min(bytesToSkip, bufBytes);
+			bytesToSkip -= skip;
+			bufCursor = skip;
+		}
+		
+		if(firstTime){
+			if(strncmp("OpusTags", (char*)bitstream_buf, 8)){
+				return false;
+			}
+			firstTime = false;
+			bufCursor += 8;
+			uint32_t vendorStrLen = *((uint32_t*)(bitstream_buf + bufCursor));
+			bufCursor += 4 + vendorStrLen;
+			numTags = *((uint32_t*)(bitstream_buf + bufCursor));
+			bufCursor += 4;
+		}
+		
+		while(bufBytes - bufCursor >= 4 && numTags){
+			uint32_t nextTagSize = *((uint32_t*)(bitstream_buf + bufCursor));
+			if(4 + nextTagSize > bufBytes - bufCursor){
+				if(nextTagSize > 1024){
+					//skip this tag
+					bytesToSkip = 4 + nextTagSize - (bufBytes - bufCursor);
+					bufCursor = bufBytes;
+					numTags--;
+				}
+				break;
+			}
+			
+			if(strncmp("R128_TRACK_GAIN=", (char*)bitstream_buf + bufCursor + 4, 16) == 0){
+				if(nextTagSize >= 17){
+					char buf[10] = {0};
+					strncpy(buf, (char*)bitstream_buf + bufCursor + 4 + 16, nextTagSize - 16);
+					replaygain_track_gain_db = output_gain + atoi(buf) / 256.f + 5; // The R128 gain is 5dB lower than ReplayGain
+				}
+			}else if(strncmp("R128_ALBUM_GAIN=", (char*)bitstream_buf + bufCursor + 4, 16) == 0){
+				if(nextTagSize >= 17){
+					char buf[10] = {0};
+					strncpy(buf, (char*)bitstream_buf + bufCursor + 4 + 16, nextTagSize - 16);
+					replaygain_album_gain_db = output_gain + atoi(buf) / 256.f + 5;
+				}
+			}
+			bufCursor += 4 + nextTagSize;
+			numTags--;
+		}
+		if(!numTags){
+			// skip blank space at the end
+			bufCursor = bufBytes;
+		}
+		
+		if(bufBytes > bufCursor){
+			memmove(bitstream_buf, bitstream_buf + bufCursor, bufBytes - bufCursor);
+		}
+		bufBytes -= bufCursor;
+		bufCursor = 0;
+	}while(readRes != READ_PACKET_COMPLETE);
+	return true;
 }
 
 //decoding-interrupt

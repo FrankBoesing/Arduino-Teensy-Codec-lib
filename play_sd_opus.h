@@ -58,7 +58,11 @@ protected:
 
 	uintptr_t		play_pos;
 
+	float output_gain = 0;
+
 	void update(void);
 	void fill_buf_from_decbuf(void);
+	bool parse_opus_header(void);
+	bool parse_metadata_tags(void);
 	friend void decodeOpus(void);
 }; 
