@@ -108,5 +108,7 @@ protected:
   ogg_codec codectype = OGG_CODECS; // codec corresponding to streamserial
   uint64_t maxgranulepos = 0;
   bool eof = false;
+
+  uint32_t samplerate;
 };
 

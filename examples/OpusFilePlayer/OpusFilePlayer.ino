@@ -11,7 +11,6 @@
 #include <SD.h>
 
 #include <play_sd_opus.h>
-#include <codecfile.h> // CodecFile implementation based on SD library
 
 // GUItool: begin automatically generated code
 AudioPlaySdOpus          playOpus1;       //xy=154,78
@@ -73,9 +72,7 @@ void setup() {
   sgtl5000_1.enable();
   sgtl5000_1.volume(0.5);
 
-  SPI.setMOSI(7);
-  SPI.setSCK(14);
-  if (!(SD.begin(10))) {
+  if (!(SD.begin(BUILTIN_SDCARD))) {
     // stop here, but print a message repetitively
     while (1) {
       Serial.println("Unable to access the SD card");
@@ -91,9 +88,7 @@ void playFile(const char *filename)
 
   // Start playing the file.  This sketch continues to
   // run while the file plays.
-  CodecFile file;
-  file.fopen(filename);
-  playOpus1.play(&file);
+  playOpus1.play(filename);
   setI2SFreq(48000);
 
   // Simply wait for the file to finish playing.
@@ -111,7 +106,6 @@ void playFile(const char *filename)
 #endif	
 	 delay(200); 
   }
-  file.fclose();
 }
 
 

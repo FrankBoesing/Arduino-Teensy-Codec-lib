@@ -38,9 +38,10 @@
 class AudioPlaySdOpus : public OggStreamReader
 {
 public:
+	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	void stop(void);
-	using AudioCodec::play;
-	int play(void);
 	bool seek(uint32_t);
 
 protected:
@@ -60,6 +61,7 @@ protected:
 
 	float output_gain = 0;
 
+	int play(void);
 	void update(void);
 	void fill_buf_from_decbuf(void);
 	bool parse_opus_header(void);

@@ -312,7 +312,7 @@ bool AudioPlaySdOpus::parse_metadata_tags(void){
 				}
 				break;
 			}
-			
+			/*
 			if(strncmp("R128_TRACK_GAIN=", (char*)bitstream_buf + bufCursor + 4, 16) == 0){
 				if(nextTagSize >= 17){
 					char buf[10] = {0};
@@ -326,6 +326,7 @@ bool AudioPlaySdOpus::parse_metadata_tags(void){
 					replaygain_album_gain_db = output_gain + atoi(buf) / 256.f + 5;
 				}
 			}
+			*/
 			bufCursor += 4 + nextTagSize;
 			numTags--;
 		}
