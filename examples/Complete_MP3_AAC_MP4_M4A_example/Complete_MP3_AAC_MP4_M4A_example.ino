@@ -46,7 +46,7 @@ int tracknum;
 int trackext[255]; // 0= nothing, 1= mp3, 2= aac, 3= wav.
 String tracklist[255];
 File root;
-char playthis[15];
+char playthis[MAX_FILENAME_LEN];
 boolean trackchange;
 boolean paused;
 
