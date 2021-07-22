@@ -95,21 +95,21 @@ static inline void crc16_update_word_(FLAC__BitReader *br, uint32_t word)
 	register unsigned crc = br->read_crc16;
 #if FLAC__BYTES_PER_WORD == 4
 	switch(br->crc16_align) {
-		case  0: crc = FLAC__CRC16_UPDATE((unsigned)(word >> 24), crc);
-		case  8: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 16) & 0xff), crc);
-		case 16: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 8) & 0xff), crc);
-		case 24: br->read_crc16 = FLAC__CRC16_UPDATE((unsigned)(word & 0xff), crc);
+		case  0: crc = FLAC__CRC16_UPDATE((unsigned)(word >> 24), crc); break;
+		case  8: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 16) & 0xff), crc); break;
+		case 16: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 8) & 0xff), crc); break;
+		case 24: br->read_crc16 = FLAC__CRC16_UPDATE((unsigned)(word & 0xff), crc); break;
 	}
 #elif FLAC__BYTES_PER_WORD == 8
 	switch(br->crc16_align) {
-		case  0: crc = FLAC__CRC16_UPDATE((unsigned)(word >> 56), crc);
-		case  8: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 48) & 0xff), crc);
-		case 16: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 40) & 0xff), crc);
-		case 24: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 32) & 0xff), crc);
-		case 32: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 24) & 0xff), crc);
-		case 40: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 16) & 0xff), crc);
-		case 48: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 8) & 0xff), crc);
-		case 56: br->read_crc16 = FLAC__CRC16_UPDATE((unsigned)(word & 0xff), crc);
+		case  0: crc = FLAC__CRC16_UPDATE((unsigned)(word >> 56), crc); break;
+		case  8: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 48) & 0xff), crc); break;
+		case 16: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 40) & 0xff), crc); break;
+		case 24: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 32) & 0xff), crc); break;
+		case 32: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 24) & 0xff), crc); break;
+		case 40: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 16) & 0xff), crc); break;
+		case 48: crc = FLAC__CRC16_UPDATE((unsigned)((word >> 8) & 0xff), crc); break;
+		case 56: br->read_crc16 = FLAC__CRC16_UPDATE((unsigned)(word & 0xff), crc); break;
 	}
 #else
 	for( ; br->crc16_align < FLAC__BITS_PER_WORD; br->crc16_align += 8)
