@@ -89,7 +89,7 @@ enum codec_playstate {codec_stopped, codec_playing, codec_paused};
 class CodecFile
 {
 public:
-	bool fopen(FS *fs,const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL;	file=fs->open(filename); _fsize=file.size(); _fposition=0;return file != 0;} //FILE
+	bool fopen(FS *fs,const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=fs->open(filename); _fsize=file.size(); _fposition=0;return file != 0;} //FILE
 	bool fopen(const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
 	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); serflashinit(); return true;} //SERIAL FLASH
