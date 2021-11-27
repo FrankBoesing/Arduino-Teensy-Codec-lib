@@ -305,5 +305,4 @@ mp3end:
 	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
 
 	if (eof) o->stop();
-
 }

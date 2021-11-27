@@ -46,6 +46,12 @@
 #include <Arduino.h>
 #include <AudioStream.h>
 #include <spi_interrupt.h>
+#include <USBHost_t36.h>
+#include <USBHost_ms.h>
+
+#if defined(ARDUINO_TEENSY41)
+#include "LittleFS.h" // T4.1 only
+#endif
 #include <SD.h>
 
 #define ERR_CODEC_NONE				0
@@ -83,7 +89,7 @@ enum codec_playstate {codec_stopped, codec_playing, codec_paused};
 class CodecFile
 {
 public:
-
+	bool fopen(FS *fs,const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL;	file=fs->open(filename); _fsize=file.size(); _fposition=0;return file != 0;} //FILE
 	bool fopen(const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
 	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); serflashinit(); return true;} //SERIAL FLASH
@@ -116,7 +122,7 @@ protected:
 
 	codec_filetype ftype;
 
-	File file;
+	File file = NULL;
 	union {
 		uint8_t* fptr;
 		size_t offset;
