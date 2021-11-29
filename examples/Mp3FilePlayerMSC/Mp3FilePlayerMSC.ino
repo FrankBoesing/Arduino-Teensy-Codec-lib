@@ -83,7 +83,5 @@ void loop() {
 //  playFile("ForTag.mp3");	
 //  playFile("Tom.mp3");
 //  playFile("Foreverm.mp3");
-  playFile("SDTEST1.mp3");
-  playFile("armaged.mp3");
   delay(500);
 }
