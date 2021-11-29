@@ -99,7 +99,5 @@ void loop() {
 //  playFile("ForTag.mp3");	
 //  playFile("Tom.mp3");
 //  playFile("Foreverm.mp3");
-  //Play a Def Lepard MP3.
-  playFile("armaged.mp3"); // Install your own MP3 file on your selected device.
   delay(500);
 }
