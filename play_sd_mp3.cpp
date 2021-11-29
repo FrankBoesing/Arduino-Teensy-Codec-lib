@@ -60,7 +60,7 @@ void AudioPlaySdMp3::stop(void)
 	playing = codec_stopped;
 	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
-	freeBuffer();
+//	freeBuffer();
 	if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
 	fclose();
 }
@@ -79,13 +79,14 @@ float AudioPlaySdMp3::processorUsageMaxSD(void){
 	return (decode_cycles_max_sd / (0.026*F_CPU)) * 100;
 };
 */
-
+uint8_t myBuff[MP3_SD_BUF_SIZE];
 int AudioPlaySdMp3::play(void)
 {
 	lastError = ERR_CODEC_NONE;
 	initVars();
 
-	sd_buf = allocBuffer(MP3_SD_BUF_SIZE);
+	sd_buf = myBuff;
+//	sd_buf = allocBuffer(MP3_SD_BUF_SIZE);
 	if (!sd_buf) return ERR_CODEC_OUT_OF_MEMORY;
 
 	mp3objptr = this;
@@ -112,8 +113,8 @@ int AudioPlaySdMp3::play(void)
 		int b = skip & 0xfffffe00;
 		fseek(b);
 		sd_left = 0;
-//		Serial.print("skip");
-//		Serial.print(fposition());
+//		Serial.print("skip = ");
+//		Serial.println(fposition());
 	} else size_id3 = 0;
 
 	//Fill buffer from the beginning with fresh data
@@ -247,7 +248,8 @@ void decodeMp3(void)
 		{
 
 			o->sd_left = o->fillReadBuffer( o->file, o->sd_buf, o->sd_p, o->sd_left, MP3_SD_BUF_SIZE);
-			if (!o->sd_left) { eof = true; goto mp3end; }
+			if (!o->sd_left) { eof = true; 
+				goto mp3end; }
 			o->sd_p = o->sd_buf;
 
 			uint32_t cycles_rd = (ARM_DWT_CYCCNT - cycles);
@@ -259,7 +261,6 @@ void decodeMp3(void)
 		{
 			// find start of next MP3 frame - assume EOF if no sync found
 			int offset = MP3FindSyncWord(o->sd_p, o->sd_left);
-
 			if (offset < 0) {
 				//Serial.println("No sync"); //no error at end of file
 				eof = true;
@@ -303,6 +304,5 @@ mp3end:
 
 	o->decoding_state++;
 	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
-
 	if (eof) o->stop();
 }
