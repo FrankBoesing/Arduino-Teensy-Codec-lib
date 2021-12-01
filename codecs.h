@@ -46,12 +46,6 @@
 #include <Arduino.h>
 #include <AudioStream.h>
 #include <spi_interrupt.h>
-#include <USBHost_t36.h>
-#include <USBHost_ms.h>
-
-#if defined(ARDUINO_TEENSY41)
-#include "LittleFS.h" // T4.1 only
-#endif
 #include <SD.h>
 
 #define ERR_CODEC_NONE				0
@@ -61,7 +55,7 @@
 
 #define IRQ_AUDIO			IRQ_SOFTWARE	// see AudioStream.cpp
 
-#if defined(__IMXRT1052__) && !defined(__IMXRT1062__)
+#if defined(__IMXRT1052__) ||  defined(__IMXRT1062__)
 #define IRQ_AUDIOCODEC		IRQ_Reserved1
 #else
 #define IRQ_AUDIOCODEC		55				// use a "reserved" (free) interrupt vector
@@ -107,7 +101,7 @@ public:
 	size_t fsize(void) {return _fsize;}
 	size_t fread(uint8_t buffer[],size_t bytes);
 
-	uint8_t *allocBuffer(size_t size) { rdbufsize = size;  bufptr = (uint8_t *) calloc(size,1); return bufptr;}
+	uint8_t *allocBuffer(size_t size) { rdbufsize = size; bufptr = (uint8_t *) calloc(size, (uint8_t) 1); return bufptr; }
 	void freeBuffer(void){ if (bufptr !=NULL) {free(bufptr);bufptr = NULL; } rdbufsize = 0;}
 	size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
 	//size_t fillReadBuffer(uint8_t *data, size_t dataLeft);
