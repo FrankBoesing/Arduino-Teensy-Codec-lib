@@ -34,10 +34,6 @@ AudioControlSGTL5000     sgtl5000_1;     //xy=240,153
 
 void setup() {
   Serial.begin(9600);
-#if defined(ARDUINO_TEENSY41) || defined(ARDUINO_TEENSY40)
-  if(CrashReport)
-	Serial.print(CrashReport);
-#endif
 
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
@@ -49,7 +45,6 @@ void setup() {
   // Initialize USBHost_t36
   myusb.begin();
   delay(100);
-  Serial.printf("%c",12);
   
   if (!mscDrive.begin(&drive1)) {
   // stop here, but print a message repetitively
