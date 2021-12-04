@@ -79,14 +79,12 @@ float AudioPlaySdMp3::processorUsageMaxSD(void){
 	return (decode_cycles_max_sd / (0.026*F_CPU)) * 100;
 };
 */
-uint8_t myBuff[MP3_SD_BUF_SIZE];
 int AudioPlaySdMp3::play(void)
 {
 	lastError = ERR_CODEC_NONE;
 	initVars();
 
-	sd_buf = myBuff;
-//	sd_buf = allocBuffer(MP3_SD_BUF_SIZE);
+	sd_buf = allocBuffer(MP3_SD_BUF_SIZE);
 	if (!sd_buf) return ERR_CODEC_OUT_OF_MEMORY;
 
 	mp3objptr = this;
