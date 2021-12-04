@@ -23,8 +23,8 @@ AudioConnection          patchCord8(playFlac, 0, i2s1, 0);
 AudioConnection          patchCord9(playFlac, 1, i2s1, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=240,153
 // GUItool: end automatically generated code
-float volume = 0.7f;
-char filename[] = "SDTEST1.mp3";
+float volume = 0.4f;
+char filename[256] = "SDTEST1.mp3";
 
 //---------------------------------------------------
 // Select drives you want to create
@@ -95,10 +95,13 @@ MTPD    mtpd(&storage);
 // SDClasses 
 #if USE_SD==1
   // edit SPI to reflect your configuration (following is for T4.1)
-  #define SD_MOSI 11
-  #define SD_MISO 12
-  #define SD_SCK  13
-
+  //#define SD_MOSI 11
+  //#define SD_MISO 12
+  //#define SD_SCK  13
+  #define SD_MOSI  7
+  #define SD_SCK   14
+  #define SD_MISO   12
+  
   #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
 
   #if defined (BUILTIN_SDCARD)
@@ -347,7 +350,8 @@ void storage_configure()
     }
   }
 #endif
-
+ // Init it to first index storage 
+ myfs = storage.getStoreFS(0);
 }
 
 void setup()
@@ -435,13 +439,27 @@ void loop()
       write_data = true;   // sets flag to continue to write data until new command is received
       int errorMp3 = 0;
       DBGSerial.print("Playing file: ");
+      if (ch > ' ') {
+        char *psz = filename;
+        while (ch > ' ') {
+          *psz++ = ch;
+          ch = Serial.read();
+        }
+        *psz = '\0';
+      }
+
       DBGSerial.println(filename);
       // Start playing the file.  This sketch continues to
       // run while the file plays.
+      #if 1
+      playFile(myfs, filename);
+      #else
+
       errorMp3 = playMp31.play(myfs, filename);
       DBGSerial.printf("play() error = %d\r\n",errorMp3);
       // Simply wait for the file to finish playing.
       if(errorMp3 != 0) write_data = false;
+      #endif      
       break;
     }
     case 'P': 
@@ -613,11 +631,11 @@ uint32_t CommandLineReadNextNumber(int &ch, uint32_t default_num) {
 }
 
 
-void playFile(const char *filename)
+void playFile(FS* pfs, const char *filename)
 {
   int filetype;
   int errAudio = 0;
-  
+
   filetype = 0;
   if (strstr(filename, ".MP3") != NULL || strstr(filename, ".mp3") != NULL) {
       filetype = 1;
@@ -633,8 +651,8 @@ void playFile(const char *filename)
       filetype = 0;
   }
   if (filetype > 0) {
-    DBGSerial.print("Playing file: ");
-    DBGSerial.println(filename);
+    Serial.printf("Playing(%d) file: '%s'\n", filetype, filename);
+    while (Serial.read() != -1) ; // clear out any keyboard data...
     
     switch (filetype) {
       case 1 :
@@ -645,60 +663,65 @@ void playFile(const char *filename)
         }
         delay(5);
         while (playMp31.isPlaying()) {
+          if (Serial.available()){Serial.println("User Abort"); break;}
           delay(250);
         }
         playMp31.stop();
         break;
       case 2 :
-        errAudio = playWav.play(myfs, filename);
+        errAudio = playWav.play(pfs, filename);
         if(errAudio == 0) {
           Serial.printf("Audio Error: %d\n", errAudio);
           break;
         }
         delay(5);
         while (playWav.isPlaying()) {
+          if (Serial.available()){Serial.println("User Abort"); break;}
           delay(250);
         }
         playWav.stop();
         break;
       case 3 :
-        errAudio = playAac.play(myfs, filename);
+        errAudio = playAac.play(pfs, filename);
         if(errAudio != 0) {
           Serial.printf("Audio Error: %d\n", errAudio);
           break;
         }
         delay(5);
         while (playAac.isPlaying()) {
+          if (Serial.available()){Serial.println("User Abort"); break;}
           delay(250);
         }
         playAac.stop();
         break;
       case 4 :
-        errAudio = playRaw.play(myfs, filename);
+        errAudio = playRaw.play(pfs, filename);
         if(errAudio == 0) {
           Serial.printf("Audio Error: %d\n", errAudio);
           break;
         }
         delay(5);
         while (playRaw.isPlaying()) {
+          if (Serial.available()){Serial.println("User Abort"); break;}
           delay(250);
         }
         playRaw.stop();
         break;
       case 5:
-        Serial.println("FLA Files not supported....");
-        /*  
-        errAudio = playFlac.play(myfs, filename);
-        if(errAudio == 0) {
+        //Serial.println("FLA Files not supported....");
+        errAudio = playFlac.play(pfs, filename);
+        if(errAudio != 0) {
           Serial.printf("Audio Error: %d\n", errAudio);
           break;
         }
         delay(5);
         while (playFlac.isPlaying()) {
+          if (Serial.available()){Serial.println("User Abort"); break;}
+          Serial.print(".");
           delay(250);
         }
         playFlac.stop();
-        */
+        
         break;
       default:
         break;
@@ -709,11 +732,11 @@ void playFile(const char *filename)
 
 void playDir(FS *pfs) {
   DBGSerial.println("Playing files on device");
-  playAll(pfs->open("/"));
+  playAll(pfs, pfs->open("/"));
   DBGSerial.println();
 }
 
-void playAll(File dir){
+void playAll(FS* pfs, File dir){
   char filename[64];
   char filnam[64];
    while(true) {
@@ -729,7 +752,7 @@ void playAll(File dir){
        //DBGSerial.println("Directory/");
        //do nothing for now
        //DBGSerial.println(entry.name());
-       playAll(entry);
+       playAll(pfs, entry);
      } else {
        // files have sizes, directories do not
        //DBGSerial.print("\t\t");
@@ -738,7 +761,7 @@ void playAll(File dir){
        strcpy(filename, dir.name());
        if(strlen(dir.name()) > 0) strcat(filename, "/");
        strcat(filename, strcpy(filnam, entry.name()));
-       playFile(filename);
+       playFile(pfs, filename);
      }
    entry.close();
  }
