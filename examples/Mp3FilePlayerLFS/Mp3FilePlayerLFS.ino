@@ -69,9 +69,9 @@ void playFile(const char *filename)
     while (playMp31.isPlaying()) {
     // uncomment these lines if your audio shield
     // has the optional volume pot soldered
-    float vol = analogRead(15);
-    vol = vol / 1024;
-    sgtl5000_1.volume(vol);
+    //float vol = analogRead(15);
+    //vol = vol / 1024;
+    //sgtl5000_1.volume(vol);
 #if 0	
 	 Serial.print("Max Usage: ");
 	 Serial.print(playMp31.processorUsageMax());
