@@ -156,7 +156,6 @@ size_t skipID3(uint8_t *sd_buf)
 				((sd_buf[8] & 0x7f) <<  7) |
 				 (sd_buf[9] & 0x7f);
 	    return ofs;
-
 	}
 	else return 0;
 }

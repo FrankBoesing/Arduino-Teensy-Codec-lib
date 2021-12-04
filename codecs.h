@@ -83,7 +83,7 @@ enum codec_playstate {codec_stopped, codec_playing, codec_paused};
 class CodecFile
 {
 public:
-
+	bool fopen(FS *fs,const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=fs->open(filename); _fsize=file.size(); _fposition=0;return file != 0;} //FILE
 	bool fopen(const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
 	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); serflashinit(); return true;} //SERIAL FLASH
@@ -101,7 +101,7 @@ public:
 	size_t fsize(void) {return _fsize;}
 	size_t fread(uint8_t buffer[],size_t bytes);
 
-	uint8_t *allocBuffer(size_t size) { rdbufsize = size;  bufptr = (uint8_t *) calloc(size,1); return bufptr;}
+	uint8_t *allocBuffer(size_t size) { rdbufsize = size; bufptr = (uint8_t *) calloc(size, (uint8_t) 1); return bufptr; }
 	void freeBuffer(void){ if (bufptr !=NULL) {free(bufptr);bufptr = NULL; } rdbufsize = 0;}
 	size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
 	//size_t fillReadBuffer(uint8_t *data, size_t dataLeft);
@@ -116,7 +116,7 @@ protected:
 
 	codec_filetype ftype;
 
-	File file;
+	File file = NULL;
 	union {
 		uint8_t* fptr;
 		size_t offset;
