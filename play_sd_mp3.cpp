@@ -60,7 +60,7 @@ void AudioPlaySdMp3::stop(void)
 	playing = codec_stopped;
 	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
-//	freeBuffer();
+	freeBuffer();
 	if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
 	fclose();
 }
