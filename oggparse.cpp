@@ -320,7 +320,7 @@ bool OggStreamReader::seekToGranulePos(uint64_t granulePos, uint64_t *landedGran
         if(!read_next_page(false)){
           return false;
         }
-      }while((int)pagehdr->granuleposition == -1 || pagehdr->granuleposition <= granulePos);
+      }while((int64_t)pagehdr->granuleposition == -1 || pagehdr->granuleposition <= granulePos);
       *landedGranulePos = lastGran;
       return true;
     }
