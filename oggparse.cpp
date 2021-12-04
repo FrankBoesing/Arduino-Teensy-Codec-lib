@@ -73,12 +73,12 @@ bool OggStreamReader::ogg_reader_init(){
       continue;
     }
     if(strncmp("vorbis", (char*)streamhdr+1, 6) == 0){
-      Serial.print("found vorbis stream\n");
+      //Serial.print("found vorbis stream\n");
       streamserialvalid = true;
       streamserial = pagehdr->serialno;
       codectype = OGG_CODEC_VORBIS;
     }else if(strncmp("OpusHead", (char*)streamhdr, 8) == 0){
-      Serial.print("found opus stream\n");
+      //Serial.print("found opus stream\n");
       streamserialvalid = true;
       streamserial = pagehdr->serialno;
       codectype = OGG_CODEC_OPUS;
@@ -99,8 +99,8 @@ bool OggStreamReader::ogg_reader_init(){
   while(read_next_page(!pagesync)){
     maxgranulepos = pagehdr->granuleposition;
   }
-  Serial.print("maxgranulepos ");
-  Serial.println((uint32_t)maxgranulepos);
+  //Serial.print("maxgranulepos ");
+  //Serial.println((uint32_t)maxgranulepos);
   
 success:
   // move packetpos back to return the first packet again to user
@@ -118,7 +118,7 @@ uint32_t OggStreamReader::verify_page_checksum(){
   while(remaining){
     uint16_t bytes_to_read = remaining > sizeof(buf) ? sizeof(buf) : remaining;
     if(fread(buf, bytes_to_read) < bytes_to_read){
-      Serial.print("verify_page_checksum: truncated file");
+      //Serial.print("verify_page_checksum: truncated file");
       return false;
     }
     if(firsttime){
@@ -133,11 +133,11 @@ uint32_t OggStreamReader::verify_page_checksum(){
   }
 
   if(crc != correctcrc){
-    Serial.print("wrong crc ");
-    Serial.print(crc, HEX);
-    Serial.print(" (correct crc ");
-    Serial.print(correctcrc, HEX);
-    Serial.print(")\n");
+    //Serial.print("wrong crc ");
+    //Serial.print(crc, HEX);
+    //Serial.print(" (correct crc ");
+    //Serial.print(correctcrc, HEX);
+    //Serial.print(")\n");
     return false;
   }else{
     //Serial.print("crc ok\n");
@@ -149,15 +149,15 @@ bool OggStreamReader::read_next_page(bool verifycrc){
   while(1){
     if(pagesync){
       if(pagehdr->flag_eos){
-        Serial.print("eof\n");
+        //Serial.print("eof\n");
         eof = true;
         return false;
       }
       // calculate where the next page is
       pagepos += current_page_bytes();
     }else{
-      Serial.print("searching for sync from ");
-      Serial.println((uint32_t)pagepos);
+      //Serial.print("searching for sync from ");
+      //Serial.println((uint32_t)pagepos);
       // look for OggS sync
       fseek(pagepos);
       int bytes_in_buf = 0;
@@ -181,7 +181,7 @@ bool OggStreamReader::read_next_page(bool verifycrc){
           }
           if(oPos <= bufend - 4){
             if(!strncmp("OggS", (char*)oPos, 4)){
-              Serial.print("found OggS\n");
+              //Serial.print("found OggS\n");
               found = true;
               break;
             }else{
@@ -212,20 +212,20 @@ bool OggStreamReader::read_next_page(bool verifycrc){
     uint bytes_read = fread(pagehdrbuf, sizeof(ogg_page_header));
     if(bytes_read < sizeof(ogg_page_header)){
       // truncated file
-      Serial.print("truncated\n");
+      //Serial.print("truncated\n");
       eof = true;
       return false;
     }
     if(strncmp("OggS", pagehdr->magic, 4)){
       // lost sync
-      Serial.print("lost sync\n");
+      //Serial.print("lost sync\n");
       pagesync = false;
       pagepos++;
       continue;
     }
     bytes_read = fread(pagehdrbuf + sizeof(ogg_page_header), pagehdr->nsegments);
     if(bytes_read < pagehdr->nsegments){
-      Serial.print("truncated\n");
+      //Serial.print("truncated\n");
       eof = true;
       return false;
     }
@@ -256,7 +256,7 @@ bool OggStreamReader::read_next_page(bool verifycrc){
     Serial.println(pagehdr->nsegments);
     */
     if(!pagesync){
-      Serial.println("re-acquired sync");
+      //Serial.println("re-acquired sync");
     }
     pagesync = true;
 
@@ -301,17 +301,17 @@ bool OggStreamReader::seekToGranulePos(uint64_t granulePos, uint64_t *landedGran
   
   while(1){
     // possible integer overflow on files >24 hours
-    Serial.print(" lowPos=");
-    Serial.print((uint32_t)lowPos);
-    Serial.print(" highPos=");
-    Serial.print((uint32_t)highPos);
-    Serial.print(" lowGran=");
-    Serial.print((uint32_t)lowGran);
-    Serial.print(" highGran=");
-    Serial.println((uint32_t)highGran);
+    //Serial.print(" lowPos=");
+    //Serial.print((uint32_t)lowPos);
+    //Serial.print(" highPos=");
+    //Serial.print((uint32_t)highPos);
+    //Serial.print(" lowGran=");
+    //Serial.print((uint32_t)lowGran);
+    //Serial.print(" highGran=");
+    //Serial.println((uint32_t)highGran);
     uint64_t tryOffset = lowPos + (highPos - lowPos) * (granulePos - lowGran) / (highGran - lowGran);
-    Serial.print("tryOffset=");
-    Serial.println((uint32_t)tryOffset);
+    //Serial.print("tryOffset=");
+    //Serial.println((uint32_t)tryOffset);
     // if tryOffset is close enough, just read ahead and return success
     if(tryOffset >= pagepos + current_page_bytes() && tryOffset <= pagepos + 1024*1024){
       uint64_t lastGran;
@@ -320,7 +320,7 @@ bool OggStreamReader::seekToGranulePos(uint64_t granulePos, uint64_t *landedGran
         if(!read_next_page(false)){
           return false;
         }
-      }while((int64_t) pagehdr->granuleposition == -1 || pagehdr->granuleposition <= granulePos);
+      }while((int64_t)pagehdr->granuleposition == -1 || pagehdr->granuleposition <= granulePos);
       *landedGranulePos = lastGran;
       return true;
     }
@@ -370,7 +370,7 @@ read_packet_result OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t o
       }else{
         // segment doesn't fit
         if(outbuf_full_action == READ_PACKET_REWIND){
-          Serial.print("buffer too small\n");
+          //Serial.print("buffer too small\n");
           goto restorepos;
         }else{
           incomplete = true;
@@ -380,12 +380,12 @@ read_packet_result OggStreamReader::read_next_packet(uint8_t *outbuf, uint32_t o
     }
     if(bytes_to_read){
       if(!fseek(packetpos)){
-        Serial.print("fseek fail\n");
+        //Serial.print("fseek fail\n");
         eof = true;
         return READ_PACKET_FAIL;
       }
       if(fread(outbuf, bytes_to_read) < bytes_to_read){
-        Serial.print("fread read less than needed\n");
+        //Serial.print("fread read less than needed\n");
         eof = true;
         return READ_PACKET_FAIL;
       }

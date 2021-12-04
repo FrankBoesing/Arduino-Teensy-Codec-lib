@@ -55,7 +55,7 @@
 
 #define IRQ_AUDIO			IRQ_SOFTWARE	// see AudioStream.cpp
 
-#if defined(__IMXRT1052__) && !defined(__IMXRT1062__)
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
 #define IRQ_AUDIOCODEC		IRQ_Reserved1
 #else
 #define IRQ_AUDIOCODEC		55				// use a "reserved" (free) interrupt vector
