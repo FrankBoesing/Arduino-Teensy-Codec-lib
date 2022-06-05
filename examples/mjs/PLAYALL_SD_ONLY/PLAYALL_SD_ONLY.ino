@@ -4,11 +4,19 @@
 #include <string.h>
 
 #include <Audio.h>
+#include <Wire.h>
+#include <SPI.h>
 #include <SD.h>
 #include <SerialFlash.h>
 #include <play_sd_mp3.h>
 #include <play_sd_aac.h>
 #include <play_sd_flac.h>
+
+#include <Audio.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+#include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
 AudioPlaySdMp3           playMp31;       //xy=154,78
@@ -32,13 +40,13 @@ AudioConnection          patchCord9(mixer1, 0, i2s1, 0);
 AudioConnection          patchCord10(mixer2, 0, i2s1, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=379.00000381469727,607.0000038146973
 // GUItool: end automatically generated code
-float volume = 0.4f;
 
+float volume = 0.5f;
 File root, entry;
 
 void setup() {
   // Open serial communications and wait for port to open
-  while (!Serial && !Serial.available() && millis() < 5000) 
+  while (!Serial && !Serial.available() && millis() < 5000){} 
 
   Serial.print(CrashReport);
   Serial.println("\n" __FILE__ " " __DATE__ " " __TIME__);
@@ -46,8 +54,8 @@ void setup() {
   AudioMemory(40);
   sgtl5000_1.enable();
   sgtl5000_1.volume(volume);
-
-  mixer1.gain(0, volume);
+  
+	mixer1.gain(0, volume);
 	mixer1.gain(1, volume);
 	mixer1.gain(2, volume);
 	mixer1.gain(3, volume);
@@ -56,8 +64,8 @@ void setup() {
 	mixer2.gain(1, volume);
 	mixer2.gain(2, volume);
 	mixer2.gain(3, volume);
-  
-  if (!(SD.begin(10))) {
+	
+  if (!(SD.begin(BUILTIN_SDCARD))) {
     // stop here, but print a message repetitively
     while (1) {
       Serial.println("Unable to access the SD card");
@@ -92,21 +100,22 @@ void playFile(const char *filename)
   if (filetype > 0) {
     Serial.print("Playing file: ");
     Serial.println(filename);
-    
+
     switch (filetype) {
       case 1 :
         errAudio = playMp31.play( filename);
+
         if(errAudio != 0) {
           Serial.printf("Audio Error: %d\n", errAudio);
           break;
         }
-        delay(5);
+        delay(100);
         while (playMp31.isPlaying()) {
           if ( Serial.available() ) {
             command = Serial.read();
           }
           if(command == 'n') break;
-          delay(250);
+          delay(100);
         }
         playMp31.stop();
         break;
@@ -115,13 +124,13 @@ void playFile(const char *filename)
         if(errAudio == 0) {
           Serial.printf("Audio Error: %d\n", errAudio);
         }
-        delay(5);
+        delay(100);
         while (playWav.isPlaying()) {
           if ( Serial.available() ) {
             command = Serial.read();
           }
           if(command == 'n') break;
-          delay(250);
+          delay(100);
         }
         playWav.stop();
         break;
