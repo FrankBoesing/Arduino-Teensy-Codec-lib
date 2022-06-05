@@ -12,12 +12,6 @@
 #include <play_sd_aac.h>
 #include <play_sd_flac.h>
 
-#include <Audio.h>
-#include <Wire.h>
-#include <SPI.h>
-#include <SD.h>
-#include <SerialFlash.h>
-
 // GUItool: begin automatically generated code
 AudioPlaySdMp3           playMp31;       //xy=154,78
 AudioPlaySdWav           playWav; //xy=154,422
@@ -41,7 +35,7 @@ AudioConnection          patchCord10(mixer2, 0, i2s1, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=379.00000381469727,607.0000038146973
 // GUItool: end automatically generated code
 
-float volume = 0.5f;
+float volume = 0.4f;
 File root, entry;
 
 void setup() {
@@ -65,7 +59,7 @@ void setup() {
 	mixer2.gain(2, volume);
 	mixer2.gain(3, volume);
 	
-  if (!(SD.begin(BUILTIN_SDCARD))) {
+  if (!(SD.begin(10))) {
     // stop here, but print a message repetitively
     while (1) {
       Serial.println("Unable to access the SD card");
@@ -109,13 +103,13 @@ void playFile(const char *filename)
           Serial.printf("Audio Error: %d\n", errAudio);
           break;
         }
-        delay(100);
+        delay(5);
         while (playMp31.isPlaying()) {
           if ( Serial.available() ) {
             command = Serial.read();
           }
           if(command == 'n') break;
-          delay(100);
+          delay(250);
         }
         playMp31.stop();
         break;
@@ -124,13 +118,13 @@ void playFile(const char *filename)
         if(errAudio == 0) {
           Serial.printf("Audio Error: %d\n", errAudio);
         }
-        delay(100);
+        delay(5);
         while (playWav.isPlaying()) {
           if ( Serial.available() ) {
             command = Serial.read();
           }
           if(command == 'n') break;
-          delay(100);
+          delay(250);
         }
         playWav.stop();
         break;
