@@ -16,17 +16,22 @@ AudioPlaySdWav           playWav; //xy=154,422
 AudioPlaySdRaw           playRaw; //xy=154,422
 AudioPlaySdAac           playAac; //xy=154,422
 AudioPlaySdFlac          playFlac;
-AudioOutputI2S           i2s1;           //xy=334,89
-AudioConnection          patchCord1(playMp31, 0, i2s1, 0);
-AudioConnection          patchCord2(playMp31, 1, i2s1, 1);
-AudioConnection          patchCord3(playWav, 0, i2s1, 0);
-AudioConnection          patchCord4(playWav, 1, i2s1, 1);
-AudioConnection          patchCord5(playAac, 0, i2s1, 0);
-AudioConnection          patchCord6(playAac, 1, i2s1, 1);
-AudioConnection          patchCord7(playRaw, 0, i2s1, 0);
-AudioConnection          patchCord8(playFlac, 0, i2s1, 0);
-AudioConnection          patchCord9(playFlac, 1, i2s1, 1);
-AudioControlSGTL5000     sgtl5000_1;     //xy=240,153
+
+AudioMixer4              mixer1;         //xy=623.0000038146973,393.00000381469727
+AudioMixer4              mixer2; //xy=626.0000038146973,490.00000381469727
+AudioOutputI2S           i2s1;           //xy=831.0000057220459,452.00000381469727
+AudioConnection          patchCord1(playMp31, 0, mixer1, 3);
+AudioConnection          patchCord2(playMp31, 1, mixer2, 3);
+AudioConnection          patchCord3(playWav, 0, mixer1, 1);
+AudioConnection          patchCord4(playWav, 1, mixer2, 1);
+AudioConnection          patchCord5(playAac, 0, mixer1, 0);
+AudioConnection          patchCord6(playAac, 1, mixer2, 0);
+AudioConnection          patchCord7(playFlac, 0, mixer1, 2);
+AudioConnection          patchCord8(playFlac, 1, mixer2, 2);
+AudioConnection          patchCord9(mixer1, 0, i2s1, 0);
+AudioConnection          patchCord10(mixer2, 0, i2s1, 1);
+AudioControlSGTL5000     sgtl5000_1;     //xy=379.00000381469727,607.0000038146973
+// GUItool: end automatically generated code
 float volume = 0.4f;
 
 File root, entry;
@@ -41,6 +46,16 @@ void setup() {
   AudioMemory(40);
   sgtl5000_1.enable();
   sgtl5000_1.volume(volume);
+
+  mixer1.gain(0, volume);
+	mixer1.gain(1, volume);
+	mixer1.gain(2, volume);
+	mixer1.gain(3, volume);
+	
+	mixer2.gain(0, volume);
+	mixer2.gain(1, volume);
+	mixer2.gain(2, volume);
+	mixer2.gain(3, volume);
   
   if (!(SD.begin(10))) {
     // stop here, but print a message repetitively
