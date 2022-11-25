@@ -34,7 +34,6 @@
 #  include <config.h>
 #endif
 
-#pragma GCC diagnostic ignored "-fpermissive"
 
 
 #include <stdio.h>
