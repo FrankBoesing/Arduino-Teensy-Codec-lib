@@ -74,10 +74,6 @@ void playFile(const char *filename)
 
 
 void loop() {
-  playFile("SDTEST1.mp3");
-  playFile("SDTEST2.mp3");
-  playFile("SDTEST3.mp3");
-  playFile("SDTEST4.mp3");
 //  playFile("ForTag.mp3");	
 //  playFile("Tom.mp3");
 //  playFile("Foreverm.mp3");
