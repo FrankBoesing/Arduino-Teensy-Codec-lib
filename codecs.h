@@ -136,7 +136,7 @@ public:
 	AudioCodec(void) : AudioStream(0, NULL) {initVars();}
 	bool pause(const bool paused);
 	bool isPlaying(void) {return playing > 0;}
-	unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
+	unsigned positionMillis(void) { return (samples_played / AUDIO_SAMPLE_RATE_EXACT) * 1000;}
 	unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
 	int channels(void) {return _channels;}
 	int bitRate(void) {return bitrate;}
