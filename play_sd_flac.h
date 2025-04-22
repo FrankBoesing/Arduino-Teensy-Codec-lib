@@ -40,7 +40,7 @@
 #include "AudioStream.h"
 #include "spi_interrupt.h"
 #include "FLAC/all.h"
-#include "audiobuffer.h"
+#include "audiocodecbuffer.h"
 
 #define FLAC_USE_SWI
 
@@ -62,7 +62,7 @@ public:
 
 protected:
 
-	AudioBuffer *audiobuffer;
+	AudioCodecBuffer *audiobuffer;
 	uint16_t	minbuffers = 0;
 	static FLAC__StreamDecoder	*hFLACDecoder ;
 
