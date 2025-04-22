@@ -113,7 +113,7 @@ int AudioPlaySdFlac::play(void)
 		goto PlayErr;
 	}
 
-	audiobuffer = new AudioBuffer();
+	audiobuffer = new AudioCodecBuffer();
 
 	FLAC__StreamDecoderInitStatus ret;
 	ret = FLAC__stream_decoder_init_stream(hFLACDecoder,

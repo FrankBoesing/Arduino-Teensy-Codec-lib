@@ -32,18 +32,18 @@
 
  */
 
-#ifndef audiobuffer_h_
-#define audiobuffer_h_
+#ifndef audiocodecbuffer_h_
+#define audiocodecbuffer_h_
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <Audio.h>
 
-class AudioBuffer
+class AudioCodecBuffer
 {
 public:
-	AudioBuffer() { init(); }
-	~AudioBuffer(){ if (data) free(data); init(); }
+	AudioCodecBuffer() { init(); }
+	~AudioCodecBuffer(){ if (data) free(data); init(); }
 	void allocMem(size_t size){
 		__disable_irq();
 		data = (int16_t*) malloc(size *	AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
